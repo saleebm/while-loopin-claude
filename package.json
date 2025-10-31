@@ -1,0 +1,17 @@
+{
+  "name": "while-loopin-claude",
+  "version": "0.1.0",
+  "description": "AI-orchestrated autonomous agent system for Claude CLI",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "agent": "bash lib/smart-agent.sh"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
