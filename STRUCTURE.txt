@@ -1,0 +1,80 @@
+while-loopin-claude/
+│
+├── 📚 Documentation
+│   ├── README.md              Main usage guide and architecture
+│   ├── CLAUDE.md              Development best practices
+│   ├── INSTALL.md             Installation instructions
+│   ├── SUMMARY.md             Setup verification
+│   └── QUICKREF.md            Command quick reference
+│
+├── 🛠️  Core System (lib/)
+│   ├── agent-runner.sh        Main execution engine (732 lines)
+│   │   ├── run_claude_agent()          - Agent loop
+│   │   ├── run_code_review_cycle()     - Code review
+│   │   ├── process_critical_fixes()    - Apply fixes
+│   │   └── run_lint_and_typecheck()    - Validate code
+│   │
+│   ├── claude-functions.sh    Reusable utilities (~200 lines)
+│   │   ├── run_claude()                - Execute Claude
+│   │   └── generate_structured_output() - Extract JSON
+│   │
+│   └── smart-agent.sh         AI orchestrator (235 lines)
+│       └── Analyzes prompts and determines all config
+│
+├── 📝 Examples (examples/)
+│   ├── README.md              Examples overview
+│   ├── simple-task.md         Basic file creation demo
+│   └── bug-fix.md             Code review demo
+│
+├── 🎨 Templates (templates/)
+│   └── code-quality-reviewer.md  Reusable review template
+│
+├── 📦 Configuration
+│   ├── package.json           Bun setup with "agent" script
+│   ├── .gitignore            Ignores agent outputs
+│   └── tsconfig.json         TypeScript config
+│
+└── 📁 Output Directories (.ai-dr/)
+    ├── prompts/              Saved prompts (auto-created)
+    └── agent-runs/           Agent outputs (auto-created)
+
+Key Features:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ AI-Determined Configuration    No hard-coding, Claude decides
+✅ Autonomous Execution            Loop until complete
+✅ Optional Code Review            Auto-fix quality issues
+✅ Rate Limiting                   Prevent API overload
+✅ Speech Feedback                 macOS spoken summaries
+✅ Completely Generic              Works in any project
+✅ Copy-Paste Installation         Just copy lib/ folder
+✅ Composable Functions            Reusable utilities
+
+Usage:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+bun run agent "Your task description"
+bun run agent path/to/plan.txt
+ENABLE_CODE_REVIEW=true bun run agent "Your task"
+
+Installation in Any Project:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cp -r lib /path/to/project/.specs/_shared/
+mkdir -p /path/to/project/.ai-dr/{prompts,agent-runs}
+
+Then add to package.json:
+{
+  "scripts": {
+    "agent": "bash .specs/_shared/smart-agent.sh"
+  }
+}
+
+Documentation Hierarchy:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. QUICKREF.md  ← Start here for commands
+2. README.md    ← Full usage guide
+3. INSTALL.md   ← Installation steps
+4. CLAUDE.md    ← Development guidelines
+5. SUMMARY.md   ← Setup verification
+
+Total Lines: ~2,230 (code + docs)
+Git Commits: 4
+Status: ✅ Ready for immediate use!
