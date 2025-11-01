@@ -38,20 +38,22 @@ This will use the agent system to build itself (meta-programming).
 
 ## Implementation Overview
 
-### Phase 1: Single-Agent Context Tracking
-- **Goal**: Add context file enforcement to existing single-agent loops
+### Phase 1: Context Tracking
+- **Goal**: Add context file to existing loop
 - **Deliverables**: CONTEXT.md per run with progress/achievements/validation
-- **Effort**: 2-3 hours agent work
+- **Complexity**: 7 points
 
-### Phase 2: Phase Segmentation
-- **Goal**: Support multiple phases within single agent run
-- **Deliverables**: Phase-specific contexts, master aggregation
-- **Effort**: 3-4 hours agent work
+### Phase 2: Phase Support
+- **Goal**: Detect phases, isolate contexts
+- **Deliverables**: Phase dirs, master aggregation
+- **Complexity**: 15 points
 
-### Phase 3: Master Agent Orchestration
-- **Goal**: Master agent coordinates multiple sub-agents across phases
-- **Deliverables**: Planning agent, master coordination, sub-agent spawning
-- **Effort**: 5-6 hours agent work
+### Phase 3: Master Orchestration
+- **Goal**: Planning agent + phase-aware execution within single run
+- **Deliverables**: PHASE-PLAN.json, phase coordination (no sub-agents)
+- **Complexity**: 18 points
+
+**Total**: 40 complexity points
 
 ## Key Principles
 
@@ -88,25 +90,23 @@ From user requirements:
 
 ### New Components
 1. **Context Tracking** (`lib/context-tracking.sh`)
-   - Enforces context file updates
-   - Validates required sections
+   - Enforces CONTEXT.md updates
+   - Validates sections
    - Logs achievements with validation
 
 2. **Phase Manager** (`lib/phase-manager.sh`)
    - Detects phase transitions
-   - Manages phase-specific contexts
-   - Aggregates to master context
+   - Phase-specific contexts
+   - Master aggregation
 
 3. **Planning Agent** (`lib/planning-agent.sh`)
-   - Breaks prompts into phases
-   - Generates phase-specific prompts
-   - Creates success criteria
+   - AI breaks prompts into phases
+   - Generates PHASE-PLAN.json
+   - Injects phase info into iterations
 
-4. **Master Agent** (`lib/master-agent.sh`)
-   - Orchestrates sub-agents
-   - Spawns phase-specific agents
-   - Aggregates all contexts
-   - Validates completion
+**No new commands** - extends existing `bun run agent`  
+**No sub-agents** - single run with phase awareness  
+**Default enabled** - disable via `ENABLE_CONTEXT_TRACKING=false`
 
 ## Testing Strategy
 
@@ -151,8 +151,25 @@ bun run agent .specs/multi-phase-agent-context-framework/AGENT-PROMPT.md
 
 ---
 
+## Master Agent (User POV)
+
+**Purpose:** Breaks complex tasks into sequential phases, maintains context, validates completion.
+
+**Best for:**
+- Multi-step workflows with dependencies
+- Tasks requiring different approaches per phase  
+- Projects needing validation gates
+- Long tasks needing progress tracking
+
+**Key qualities:**
+- Autonomous phase planning
+- Context preservation
+- Achievement validation enforcement
+- Per-phase failure recovery
+- Progress visibility
+
+---
+
 ## Meta Note
 
-This is a unique project: we're using the While Loopin' Claude agent system to extend itself. The agent will read its own codebase, understand its architecture, and add new capabilities while preserving existing functionality.
-
-This demonstrates the power of AI-orchestrated development: the system becomes a platform for building itself.
+Using While Loopin' Claude to extend itself - reading own codebase, adding capabilities while preserving functionality. System builds itself.
