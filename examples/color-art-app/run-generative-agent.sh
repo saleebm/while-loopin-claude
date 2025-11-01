@@ -10,6 +10,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 EXAMPLE_DIR="$SCRIPT_DIR"
 
+# Set PROJECT_DIR for agent-runner.sh
+export PROJECT_DIR="$REPO_ROOT"
+
 # Source the agent runner library
 source "$REPO_ROOT/lib/agent-runner.sh"
 
