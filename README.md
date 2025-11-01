@@ -133,6 +133,50 @@ run_claude_agent \
 
 ## Examples
 
+### Terminal Color Art
+
+Simple Node.js terminal art generator:
+
+```bash
+cd examples/color-art-app
+bash run-agent.sh      # Run autonomous agent
+node color-art.js      # See the terminal art
+```
+
+Demonstrates basic autonomous iteration with prompt files.
+
+### Generative Art Playground
+
+Watch Claude autonomously build a complete generative art system from a simple HTML starter:
+
+```bash
+cd examples/color-art-app
+
+# View the simple starter (120 lines)
+open index.html
+
+# Let Claude transform it! (5 iterations)
+bash run-generative-agent.sh
+
+# View the result (993 lines with 5 patterns)
+open index.html
+```
+
+**What Claude Builds:**
+- **5 Generative Patterns**: Flow Field, Fractal Tree, Particle Galaxy, Sacred Geometry, Plasma Waves
+- **ColorPalette System**: 8 color schemes with HSLA → HEX conversion
+- **Interactive Controls**: Keyboard shortcuts, mouse interactions, UI sliders
+- **60 FPS Performance**: Optimized canvas rendering with thousands of particles
+- **Export Features**: Save frames as PNG, reproducible seeds
+
+Compare the before/after:
+- **Before**: `index.html` (120 lines, rotating circles)
+- **After**: `index-transformed-demo.html` (993 lines, full system)
+
+See `TRANSFORMATION-SUMMARY.md` and `WHAT-CLAUDE-BUILT.md` for complete documentation of what gets created.
+
+### Additional Examples
+
 See `examples/` directory for:
 - Simple bug fix task
 - Feature implementation
