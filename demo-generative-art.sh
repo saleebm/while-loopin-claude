@@ -4,8 +4,9 @@ set -euo pipefail
 # Demo script: Run generative art transformation from repo root
 # Usage: bash demo-generative-art.sh
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXAMPLE_DIR="$SCRIPT_DIR/examples/color-art-app"
+# Use git root as base directory (works from anywhere in repo)
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+EXAMPLE_DIR="$REPO_ROOT/examples/color-art-app"
 
 echo "🎨 Generative Art Transformation Demo"
 echo ""
@@ -51,11 +52,11 @@ echo "  • Before: 120 lines (simple rotating circles)"
 echo "  • After:  $(wc -l < index.html | tr -d ' ') lines (5 generative patterns + controls)"
 echo ""
 echo "🎯 Next steps:"
-echo "  1. View the result:  open examples/color-art-app/index.html"
-echo "  2. See what changed: git diff examples/color-art-app/index.html"
-echo "  3. Reset for demo:   cd examples/color-art-app && git checkout index.html"
+echo "  1. View the result:  open $EXAMPLE_DIR/index.html"
+echo "  2. See what changed: git diff $EXAMPLE_DIR/index.html"
+echo "  3. Reset for demo:   git checkout $EXAMPLE_DIR/index.html"
 echo ""
 echo "📚 Documentation:"
-echo "  • TRANSFORMATION-SUMMARY.md - Quick overview"
-echo "  • WHAT-CLAUDE-BUILT.md - Technical deep dive"
+echo "  • $EXAMPLE_DIR/TRANSFORMATION-SUMMARY.md - Quick overview"
+echo "  • $EXAMPLE_DIR/WHAT-CLAUDE-BUILT.md - Technical deep dive"
 echo ""
