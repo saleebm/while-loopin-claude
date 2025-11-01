@@ -13,8 +13,8 @@ AI-orchestrated autonomous agent system for Claude CLI. Lets Claude run in a loo
 ## Quick Start
 
 ```bash
-# Install in your project
-cp -r lib/ your-project/.specs/_shared/
+# Install into a project (shared libs + template)
+node scripts/install.ts --target /path/to/your-project
 
 # Run agent with inline prompt
 bun run agent "Fix the authentication bug in user login"
@@ -68,8 +68,9 @@ your-project/
 │   ├── prompts/          # Saved prompts
 │   └── agent-runs/       # Agent outputs
 │       └── {feature-name}/
-│           ├── iteration_*.log
-│           └── reviews/
+│           └── {run-id}/           # Per-execution outputs
+│               ├── iteration_*.log
+│               └── reviews/
 └── package.json
 ```
 
@@ -103,7 +104,9 @@ bash .specs/_shared/agent-runner.sh \
   .ai-dr/agent-runs/my-feature \
   10 \
   --enable-code-review \
-  --max-reviews 5
+  --max-reviews 5 \
+  --handoff auto \
+  --handoff-template templates/handoff-system-prompt.md
 ```
 
 ### Custom Integration

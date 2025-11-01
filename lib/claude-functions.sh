@@ -44,6 +44,37 @@ run_claude() {
 }
 
 ################################################################################
+# run_claude_json() - Execute Claude expecting JSON result; unwrap CLI envelope
+################################################################################
+# Usage: run_claude_json PROMPT [MODEL]
+# Prints the best-effort JSON string (no fences) to stdout
+run_claude_json() {
+  local PROMPT="$1"
+  local MODEL="${2:-haiku}"
+
+  local RAW_JSON
+  RAW_JSON=$(claude \
+    --print \
+    --model "$MODEL" \
+    --output-format json \
+    --dangerously-skip-permissions \
+    "$PROMPT" || echo '{"type":"result","result":"{\"error\":true}"}')
+
+  local RESULT=$(echo "$RAW_JSON" | jq -r '.result // "{}"')
+
+  if echo "$RESULT" | grep -q '```json'; then
+    RESULT=$(echo "$RESULT" | sed -n '/```json/,/```/p' | sed '1d;$d')
+  fi
+
+  # Validate JSON; if invalid, return minimal valid JSON
+  if ! echo "$RESULT" | jq empty 2>/dev/null; then
+    echo '{}'
+  else
+    echo "$RESULT"
+  fi
+}
+
+################################################################################
 # generate_structured_output() - Use Haiku to create structured JSON output
 ################################################################################
 # Usage: generate_structured_output INPUT_FILE [ADDITIONAL_JSON]

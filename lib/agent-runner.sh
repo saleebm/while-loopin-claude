@@ -69,12 +69,16 @@ set -euo pipefail
 # Use SHARED_SCRIPT_DIR to avoid overriding calling script's SCRIPT_DIR
 SHARED_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SHARED_SCRIPT_DIR/claude-functions.sh"
+source "$SHARED_SCRIPT_DIR/handoff-functions.sh"
+source "$SHARED_SCRIPT_DIR/code-review.sh"
 
 # Configuration defaults (can be overridden by command-line arguments)
 ENABLE_SPEECH="${ENABLE_SPEECH:-false}"
 ENABLE_CODE_REVIEW="${ENABLE_CODE_REVIEW:-false}"
 MAX_CODE_REVIEWS="${MAX_CODE_REVIEWS:-5}"
 RATE_LIMIT_SECONDS="${RATE_LIMIT_SECONDS:-15}"
+HANDOFF_MODE="${HANDOFF_MODE:-auto}"
+HANDOFF_TEMPLATE="${HANDOFF_TEMPLATE:-}"
 
 # Speak text using macOS say command (synchronous - waits for speech to finish)
 speak() {
@@ -107,276 +111,13 @@ Respond with ONLY the sentence to speak, nothing else." || echo "Iteration $ITER
   speak "$SUMMARY"
 }
 
-################################################################################
-# Helper Functions for Code Review
-################################################################################
+# Code review helpers moved to lib/code-review.sh (sourced above)
 
-# Generate review prompt from original prompt and agent output
-generate_review_prompt() {
-  local ORIGINAL_PROMPT="$1"
-  local OUTPUT_DIR="$2"
-  local PROJECT_DIR="$3"
 
-  # Find latest agent output
-  local LATEST_OUTPUT=$(ls -t "$OUTPUT_DIR"/iteration_*.log 2>/dev/null | head -1)
 
-  # Load code quality reviewer template
-  local TEMPLATE_PATH="$PROJECT_DIR/.claude/agents/code-quality-reviewer.md"
-  local TEMPLATE_CONTENT=""
 
-  if [[ -f "$TEMPLATE_PATH" ]]; then
-    # Extract content after the frontmatter (after the second ---)
-    TEMPLATE_CONTENT=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$TEMPLATE_PATH" | tail -n +2)
-  else
-    echo "⚠️  Warning: Template not found at $TEMPLATE_PATH, using inline template" >&2
-    TEMPLATE_CONTENT="Review the code for quality, maintainability, and best practices."
-  fi
 
-  cat <<EOF
-$TEMPLATE_CONTENT
 
-# Original Task Given to Agent
-$ORIGINAL_PROMPT
-
-# Agent Output to Review
-$(cat "$LATEST_OUTPUT" 2>/dev/null || echo "No output found")
-
-# Required Output Format
-After your detailed analysis, provide a JSON structure at the end:
-{
-  "score": 8,
-  "critical_fixes": ["issue 1", "issue 2"],
-  "suggestions": ["suggestion 1"],
-  "summary": "2-3 sentence overview"
-}
-EOF
-}
-
-# Generate fix prompt from review JSON
-generate_fix_prompt() {
-  local REVIEW_JSON="$1"
-
-  local CRITICAL_FIXES=$(echo "$REVIEW_JSON" | jq -r '.critical_fixes | join("\n- ")')
-  local REVIEW_PATH=$(echo "$REVIEW_JSON" | jq -r '.review_output_path')
-  local SUMMARY=$(echo "$REVIEW_JSON" | jq -r '.summary')
-
-  cat <<EOF
-# Apply Critical Fixes
-
-## Review Summary
-$SUMMARY
-
-## Full Review Analysis
-$(cat "$REVIEW_PATH" 2>/dev/null || echo "Review file not found")
-
-## Critical Fixes Needed
-- $CRITICAL_FIXES
-
-## Your Task
-Apply these critical fixes to the code. Be surgical - fix ONLY the issues listed.
-
-After applying fixes:
-1. Verify the code still works
-2. Update any relevant documentation
-3. Provide summary of changes made
-EOF
-}
-
-################################################################################
-# Process Critical Fixes - Apply each fix individually
-################################################################################
-
-# Process each critical fix from review with separate Claude commands
-# Usage: process_critical_fixes REVIEW_JSON REVIEW_DIR REVIEW_NUM PROJECT_DIR
-process_critical_fixes() {
-  local REVIEW_JSON="$1"
-  local REVIEW_DIR="$2"
-  local REVIEW_NUM="$3"
-  local PROJECT_DIR="$4"
-
-  # Extract critical fixes array
-  local CRITICAL_FIXES=$(echo "$REVIEW_JSON" | jq -r '.critical_fixes[]' 2>/dev/null)
-  local FIX_COUNT=$(echo "$REVIEW_JSON" | jq '.critical_fixes | length')
-
-  if [[ "$FIX_COUNT" -eq 0 ]]; then
-    echo "      ℹ️  No critical fixes needed"
-    return 0
-  fi
-
-  local fix_num=1
-  while IFS= read -r fix; do
-    echo ""
-    echo "      🔧 Fix $fix_num of $FIX_COUNT: $fix"
-
-    # Generate fix prompt for this specific issue
-    local FIX_PROMPT
-    read -r -d '' FIX_PROMPT <<'EOF_FIX' || true
-# Apply Critical Fix
-
-## Issue to Fix
-FIX_ISSUE_HERE
-
-## Context
-This issue was identified during code review. Apply ONLY this specific fix.
-
-## Requirements
-1. Fix the issue mentioned above
-2. Ensure fix doesn't break existing functionality
-3. Follow project coding standards
-4. Be surgical - minimal changes
-
-## Working Directory
-PROJECT_DIR_HERE
-
-Please apply the fix now.
-EOF_FIX
-
-    # Substitute variables
-    FIX_PROMPT="${FIX_PROMPT//FIX_ISSUE_HERE/$fix}"
-    FIX_PROMPT="${FIX_PROMPT//PROJECT_DIR_HERE/$PROJECT_DIR}"
-
-    # Run Claude to apply this specific fix
-    local FIX_OUTPUT="$REVIEW_DIR/fix_${REVIEW_NUM}_${fix_num}.log"
-
-    # Change to project directory before running Claude
-    cd "$PROJECT_DIR" || return 1
-
-    if ! run_claude "$FIX_PROMPT" "$FIX_OUTPUT" "sonnet"; then
-      echo "      ❌ Failed to apply fix $fix_num"
-      return 1
-    fi
-
-    echo "      ✅ Fix $fix_num applied"
-
-    # Rate limiting between fix commands
-    if [[ $fix_num -lt $FIX_COUNT ]]; then
-      sleep 2
-    fi
-
-    ((fix_num++))
-  done <<< "$CRITICAL_FIXES"
-
-  return 0
-}
-
-################################################################################
-# Run Lint and Typecheck - Validate code quality
-################################################################################
-
-# Run lint and typecheck, fix issues if found
-# Usage: run_lint_and_typecheck REVIEW_DIR REVIEW_NUM PROJECT_DIR
-run_lint_and_typecheck() {
-  local REVIEW_DIR="$1"
-  local REVIEW_NUM="$2"
-  local PROJECT_DIR="$3"
-
-  # Change to project directory
-  cd "$PROJECT_DIR" || return 1
-
-  local lint_failed=false
-  local typecheck_failed=false
-
-  # Run lint
-  echo "      📋 Running lint..."
-  if ! bun run lint > "$REVIEW_DIR/lint_${REVIEW_NUM}.log" 2>&1; then
-    lint_failed=true
-    echo "      ⚠️  Lint found issues"
-
-    # Run Claude to fix lint issues
-    echo "      🔧 Applying lint fixes..."
-    local LINT_OUTPUT
-    LINT_OUTPUT=$(cat "$REVIEW_DIR/lint_${REVIEW_NUM}.log")
-
-    local LINT_FIX_PROMPT
-    read -r -d '' LINT_FIX_PROMPT <<'EOF_LINT' || true
-# Fix Linting Issues
-
-## Lint Output
-LINT_OUTPUT_HERE
-
-## Your Task
-Fix all linting issues shown above. Follow project linting standards.
-
-## Working Directory
-You are in: PROJECT_DIR_HERE
-
-Please fix the linting issues now.
-EOF_LINT
-
-    # Substitute variables
-    LINT_FIX_PROMPT="${LINT_FIX_PROMPT//LINT_OUTPUT_HERE/$LINT_OUTPUT}"
-    LINT_FIX_PROMPT="${LINT_FIX_PROMPT//PROJECT_DIR_HERE/$PROJECT_DIR}"
-
-    if ! run_claude "$LINT_FIX_PROMPT" "$REVIEW_DIR/lint_fix_${REVIEW_NUM}.log" "sonnet"; then
-      echo "      ❌ Failed to fix lint issues"
-      return 1
-    fi
-
-    echo "      ✅ Lint fixes applied"
-
-    # Re-run lint to verify
-    if bun run lint > "$REVIEW_DIR/lint_recheck_${REVIEW_NUM}.log" 2>&1; then
-      echo "      ✅ Lint now passes"
-      lint_failed=false
-    fi
-  else
-    echo "      ✅ Lint passed"
-  fi
-
-  # Run typecheck
-  echo "      📋 Running typecheck..."
-  if ! bun run typecheck > "$REVIEW_DIR/typecheck_${REVIEW_NUM}.log" 2>&1; then
-    typecheck_failed=true
-    echo "      ⚠️  Typecheck found issues"
-
-    # Run Claude to fix type issues
-    echo "      🔧 Applying typecheck fixes..."
-    local TYPE_OUTPUT
-    TYPE_OUTPUT=$(cat "$REVIEW_DIR/typecheck_${REVIEW_NUM}.log")
-
-    local TYPE_FIX_PROMPT
-    read -r -d '' TYPE_FIX_PROMPT <<'EOF_TYPE' || true
-# Fix Type Errors
-
-## Typecheck Output
-TYPE_OUTPUT_HERE
-
-## Your Task
-Fix all type errors shown above. Ensure type safety throughout.
-
-## Working Directory
-You are in: PROJECT_DIR_HERE
-
-Please fix the type errors now.
-EOF_TYPE
-
-    # Substitute variables
-    TYPE_FIX_PROMPT="${TYPE_FIX_PROMPT//TYPE_OUTPUT_HERE/$TYPE_OUTPUT}"
-    TYPE_FIX_PROMPT="${TYPE_FIX_PROMPT//PROJECT_DIR_HERE/$PROJECT_DIR}"
-
-    if ! run_claude "$TYPE_FIX_PROMPT" "$REVIEW_DIR/type_fix_${REVIEW_NUM}.log" "sonnet"; then
-      echo "      ❌ Failed to fix type issues"
-      return 1
-    fi
-
-    echo "      ✅ Type fixes applied"
-
-    # Re-run typecheck to verify
-    if bun run typecheck > "$REVIEW_DIR/typecheck_recheck_${REVIEW_NUM}.log" 2>&1; then
-      echo "      ✅ Typecheck now passes"
-      typecheck_failed=false
-    fi
-  else
-    echo "      ✅ Typecheck passed"
-  fi
-
-  # Return success only if both pass
-  if [[ "$lint_failed" == "false" ]] && [[ "$typecheck_failed" == "false" ]]; then
-    return 0
-  else
-    return 1
-  fi
-}
 
 ################################################################################
 # Code Review Cycle Function
@@ -509,6 +250,14 @@ run_claude_agent() {
         RATE_LIMIT_SECONDS="$2"
         shift 2
         ;;
+      --handoff)
+        HANDOFF_MODE="$2"
+        shift 2
+        ;;
+      --handoff-template)
+        HANDOFF_TEMPLATE="$2"
+        shift 2
+        ;;
       *)
         echo "⚠️  Unknown option: $1"
         shift
@@ -517,6 +266,7 @@ run_claude_agent() {
   done
 
   local TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+  local RUN_ID="${TIMESTAMP}-$$"
 
   # PROJECT_DIR should be set by calling script (repo root)
   # If not set, try to determine it from git root
@@ -530,13 +280,15 @@ run_claude_agent() {
     return 1
   fi
 
-  # Create output directory
+  # Create output directory (base and per-run)
   mkdir -p "$OUTPUT_DIR"
+  local RUN_OUTPUT_DIR="$OUTPUT_DIR/$RUN_ID"
+  mkdir -p "$RUN_OUTPUT_DIR"
 
   echo "🤖 Starting Claude Autonomous Agent"
   echo "📝 Prompt: $PROMPT_FILE"
   echo "📄 Handoff: $HANDOFF_FILE"
-  echo "📁 Output: $OUTPUT_DIR"
+  echo "📁 Output (run): $RUN_OUTPUT_DIR"
   echo "🔄 Max iterations: $MAX_ITERATIONS"
   if [[ "$ENABLE_SPEECH" == "true" ]]; then
     echo "🔊 Speech enabled"
@@ -556,8 +308,8 @@ run_claude_agent() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    # Create unique output file
-    local OUTPUT_FILE="$OUTPUT_DIR/iteration_${i}_${TIMESTAMP}.log"
+    # Create unique output file in run subdir
+    local OUTPUT_FILE="$RUN_OUTPUT_DIR/iteration_${i}.log"
     echo "📄 Output: $OUTPUT_FILE"
     echo "📝 Prompt: $(wc -l < "$PROMPT_FILE") lines"
     echo "⚙️  Running Claude..."
@@ -565,14 +317,8 @@ run_claude_agent() {
 
     speak "Starting iteration $i"
 
-    # Run Claude in non-interactive mode
-    # Use tee to pipe output to both file AND console
-    if ! claude \
-      --print \
-      --dangerously-skip-permissions \
-      --output-format text \
-      "$CURRENT_PROMPT" \
-      2>&1 | tee "$OUTPUT_FILE"; then
+    # Run Claude in non-interactive mode via helper (tee handled inside)
+    if ! run_claude "$CURRENT_PROMPT" "$OUTPUT_FILE" "sonnet"; then
       echo ""
       echo "❌ Error: Claude failed"
       echo "📄 Check: $OUTPUT_FILE"
@@ -588,6 +334,23 @@ run_claude_agent() {
     # Generate and speak AI summary of iteration
     echo "🔊 Generating speech summary..."
     generate_speech_summary "$OUTPUT_FILE" "$i"
+
+    # Auto-generate/update handoff for next iteration if enabled
+    local DEFAULT_HANDOFF_TEMPLATE=""
+    if [[ -z "$HANDOFF_TEMPLATE" ]]; then
+      # Prefer repo-level template if present
+      if [[ -n "$PROJECT_DIR" && -f "$PROJECT_DIR/templates/handoff-system-prompt.md" ]]; then
+        DEFAULT_HANDOFF_TEMPLATE="$PROJECT_DIR/templates/handoff-system-prompt.md"
+      fi
+    fi
+    ensure_handoff \
+      "$OUTPUT_FILE" \
+      "$HANDOFF_FILE" \
+      "$PROJECT_DIR" \
+      "$i" \
+      "$RUN_OUTPUT_DIR" \
+      "${HANDOFF_MODE}" \
+      "${HANDOFF_TEMPLATE:-$DEFAULT_HANDOFF_TEMPLATE}"
 
     # Check for completion
     if [[ -f "$HANDOFF_FILE" ]]; then
@@ -650,8 +413,8 @@ run_claude_agent() {
     echo "   Lines: $(wc -l < "$HANDOFF_FILE") lines"
   fi
   echo ""
-  echo "📁 All outputs: $OUTPUT_DIR"
-  echo "   Total files: $(ls -1 "$OUTPUT_DIR" 2>/dev/null | wc -l)"
+  echo "📁 Run outputs: $RUN_OUTPUT_DIR"
+  echo "   Total files: $(ls -1 "$RUN_OUTPUT_DIR" 2>/dev/null | wc -l)"
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -663,7 +426,7 @@ run_claude_agent() {
     # Save initial prompt for review context
     local INITIAL_PROMPT=$(cat "$PROMPT_FILE")
 
-    if run_code_review_cycle "$INITIAL_PROMPT" "$OUTPUT_DIR" "$MAX_CODE_REVIEWS" "$PROJECT_DIR"; then
+    if run_code_review_cycle "$INITIAL_PROMPT" "$RUN_OUTPUT_DIR" "$MAX_CODE_REVIEWS" "$PROJECT_DIR"; then
       echo "✅ Code review approved"
       speak "Code review cycle completed successfully"
     else

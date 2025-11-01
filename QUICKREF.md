@@ -5,16 +5,11 @@ Concise command reference for While Loopin' Claude.
 ## Installation
 
 ```bash
-# Copy to project
-cp -r lib /path/to/project/.specs/_shared/
-mkdir -p /path/to/project/.ai-dr/{prompts,agent-runs}
+# Fast installer (shared libs + template)
+node scripts/install.ts --target /path/to/project
 
-# Add to package.json
-{
-  "scripts": {
-    "agent": "bash .specs/_shared/smart-agent.sh"
-  }
-}
+# Ensure outputs dir exists
+mkdir -p /path/to/project/.ai-dr/{prompts,agent-runs}
 ```
 
 ## Basic Usage
@@ -42,8 +37,12 @@ MAX_ITERATIONS=20 bun run agent "Your prompt"
 # Enable speech (macOS)
 ENABLE_SPEECH=true bun run agent "Your prompt"
 
-# Adjust rate limiting
+# Adjust rate limiting and handoff mode
 RATE_LIMIT_SECONDS=30 bun run agent "Your prompt"
+
+# Control handoff behavior (direct runner flags)
+bash .specs/_shared/agent-runner.sh ... --handoff auto
+bash .specs/_shared/agent-runner.sh ... --handoff-template templates/handoff-system-prompt.md
 
 # Combine options
 ENABLE_CODE_REVIEW=true MAX_ITERATIONS=15 bun run agent "Your prompt"
@@ -58,7 +57,7 @@ ENABLE_CODE_REVIEW=true MAX_ITERATIONS=15 bun run agent "Your prompt"
 ├── analysis.json        # AI configuration
 └── README.md            # Navigation
 
-.ai-dr/agent-runs/{feature-name}/
+.ai-dr/agent-runs/{feature-name}/{run-id}/
 ├── iteration_*.log      # Agent outputs
 └── reviews/             # Review outputs
     ├── review_*.log
@@ -181,7 +180,8 @@ run_claude_agent \
   "$HANDOFF_FILE" \
   "$OUTPUT_DIR" \
   10 \
-  --enable-code-review
+  --enable-code-review \
+  --handoff auto
 
 # Run Claude command
 run_claude "Your prompt" "output.log" "sonnet"
