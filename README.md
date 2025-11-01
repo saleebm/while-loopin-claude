@@ -150,16 +150,31 @@ Demonstrates basic autonomous iteration with prompt files.
 Watch Claude autonomously build a complete generative art system from a simple HTML starter:
 
 ```bash
+# Run from repo root (easiest!)
+bun run demo
+
+# Or run from example directory
 cd examples/color-art-app
-
-# View the simple starter (120 lines)
-open index.html
-
-# Let Claude transform it! (5 iterations)
 bash run-generative-agent.sh
+```
 
-# View the result (993 lines with 5 patterns)
-open index.html
+**What happens:**
+- Transforms `index.html` from 120 lines → 993 lines
+- Builds 5 complete generative art patterns
+- Adds color theory system and interactive controls
+- Shows the agent's progress in real-time
+- Opens the result when complete
+
+**Before/After:**
+```bash
+# View simple starter
+open examples/color-art-app/index.html  # Before: rotating circles
+
+# Run transformation
+bun run demo
+
+# View the result
+open examples/color-art-app/index.html  # After: full generative art system
 ```
 
 **What Claude Builds:**

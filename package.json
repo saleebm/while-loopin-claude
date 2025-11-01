@@ -6,7 +6,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "agent": "bash lib/smart-agent.sh"
+    "agent": "bash lib/smart-agent.sh",
+    "demo": "bash demo-generative-art.sh"
   },
   "devDependencies": {
     "@types/bun": "latest"
