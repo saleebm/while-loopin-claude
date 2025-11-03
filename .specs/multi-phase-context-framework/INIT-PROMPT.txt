@@ -1,0 +1,42 @@
+# Initialize Multi-Phase Context Framework Implementation
+
+## Your Task
+
+Read the plan files in `.specs/multi-phase-context-framework/` and implement the framework according to the breakdown.
+
+## Start Here
+
+1. Read `PLAN.md` - Overall implementation plan
+2. Read `TASK-BREAKDOWN.md` - Detailed measurable tasks
+3. Start with Phase 1, Task 1.1.1: Add context file instruction to agent loop
+
+## Key Principles
+
+- Preserve ALL existing functionality
+- Only ADD code, don't modify core logic unnecessarily  
+- Build on existing patterns (use `run_claude()`, `generate_structured_output()`)
+- Test after each change
+- Keep changes minimal
+
+## Implementation Order
+
+1. **Phase 1**: Context file system (foundation)
+2. **Phase 2**: Master agent framework (orchestration)
+3. **Phase 3**: Integration (preservation)
+4. **Phase 4**: Pattern template (reusability)
+
+## First Steps
+
+1. Create `lib/context-functions.sh` with `ensure_context_structure()` function
+2. Modify `lib/agent-runner.sh` to call context structure creation
+3. Modify `generate_continuation_prompt()` to include context file instructions
+4. Test: Run single agent and verify context files created
+
+## Success Criteria
+
+- Context files created automatically
+- Master agent can coordinate phases
+- Zero regressions in existing functionality
+- Pattern reusable across `.specs/` directories
+
+Begin implementation now, starting with Phase 1.
