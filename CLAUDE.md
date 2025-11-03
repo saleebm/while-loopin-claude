@@ -10,6 +10,8 @@
 
 **DRY Documentation**: Reference existing docs rather than repeating. Keep docs focused and minimal.
 
+**Complexity Points Over Time**: When planning multi-phase work, use complexity points (1-20 scale) rather than time estimates. Break tasks by cognitive/technical complexity, not duration.
+
 ## Architecture
 
 Three shell scripts work together:
