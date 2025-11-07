@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Code review helpers extracted from agent-runner.sh
-# Requires: claude-functions.sh to be sourced (run_claude, generate_structured_output)
+# Requires: claude-functions.sh to be sourced (run_claude, generate_structured_review_json)
 
 set -euo pipefail
 
@@ -319,17 +319,13 @@ run_code_review_cycle() {
       generate_speech_summary "$REVIEW_OUTPUT" "$review_num"
     fi
 
-    # Step 3b: Generate structured JSON output separately
-    local ADDITIONAL_JSON='{
-      "score": 0,
-      "critical_fixes": [],
-      "suggestions": [],
-      "summary": "",
-      "review_output_path": "'""$REVIEW_OUTPUT""'"
-    }'
-
+    # Step 3b: Generate structured JSON output
     echo "   🔄 Extracting structured review data..."
-    local REVIEW_JSON=$(generate_structured_output "$REVIEW_OUTPUT" "$ADDITIONAL_JSON")
+    local REVIEW_JSON=$(generate_structured_review_json "$REVIEW_OUTPUT" '{}' "$PROJECT_DIR")
+    
+    # Add review_output_path to JSON
+    REVIEW_JSON=$(echo "$REVIEW_JSON" | jq --arg path "$REVIEW_OUTPUT" '. + {review_output_path: $path}')
+    
     echo "$REVIEW_JSON" > "$REVIEW_DIR/review_${review_num}.json"
 
     # Step 4: Check for critical fixes

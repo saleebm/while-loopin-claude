@@ -14,7 +14,10 @@
     "check": "npm run typecheck"
   },
   "dependencies": {
-    "ws": "^8.14.2"
+    "@ai-sdk/anthropic": "^2.0.41",
+    "ai": "^5.0.89",
+    "ws": "^8.14.2",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/bun": "latest"

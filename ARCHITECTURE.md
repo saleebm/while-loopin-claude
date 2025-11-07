@@ -236,7 +236,7 @@ while-loopin-claude/
 **Key Functions**:
 - `run_claude()` - Execute Claude and save output
 - `run_claude_json()` - Execute expecting JSON response
-- `generate_structured_output()` - Extract JSON from text
+- `generate_structured_review_json()` - Extract structured review data (wrapper for AI SDK generateObject)
 - `prompt_text()`, `prompt_select()`, `prompt_confirm()` - Interactive prompts
 - `play_alert()`, `speak_prompt()` - User feedback
 - `update_live_progress()` - WebSocket integration

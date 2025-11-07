@@ -24,7 +24,7 @@ set -euo pipefail
 #      * ✅ Use reusable run_claude() function
 #
 #    - Step 3: ✅ Generate structured output from review using Haiku
-#      * ✅ Extract into reusable generate_structured_output() function
+#      * ✅ Extract into dedicated Bun script using AI SDK generateObject
 #      * ✅ Keep existing speech functionality - uses generate_speech_summary()
 #      * ✅ Allow passing additional JSON keys to merge
 #      * ✅ Use proper JSON merge (jq)
@@ -44,7 +44,7 @@ set -euo pipefail
 #
 # 3. REFACTORING REQUIREMENTS:
 #    - ✅ Extract run_claude() - reusable function to run Claude and save output
-#    - ✅ Extract generate_structured_output() - reusable Haiku function
+#    - ✅ Extract structured output to Bun script using AI SDK generateObject
 #      * ✅ Must preserve exact existing functionality
 #      * ✅ Must allow passing additional JSON keys
 #      * ✅ Must merge into single valid JSON object
@@ -71,6 +71,7 @@ SHARED_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SHARED_SCRIPT_DIR/claude-functions.sh"
 source "$SHARED_SCRIPT_DIR/handoff-functions.sh"
 source "$SHARED_SCRIPT_DIR/code-review.sh"
+source "$SHARED_SCRIPT_DIR/context-functions.sh"
 
 # Configuration defaults (can be overridden by command-line arguments)
 ENABLE_SPEECH="${ENABLE_SPEECH:-false}"
@@ -154,22 +155,18 @@ run_code_review_cycle() {
     echo "   🔊 Generating speech summary..."
     generate_speech_summary "$REVIEW_OUTPUT" "$review_num"
 
-    # Step 3b: Generate structured JSON output separately
-    local ADDITIONAL_JSON='{
-      "score": 0,
-      "critical_fixes": [],
-      "suggestions": [],
-      "summary": "",
-      "review_output_path": "'"$REVIEW_OUTPUT"'"
-    }'
-
+    # Step 3b: Generate structured JSON output
     echo "   🔄 Extracting structured review data..."
-    local REVIEW_JSON=$(generate_structured_output "$REVIEW_OUTPUT" "$ADDITIONAL_JSON")
+    local REVIEW_JSON=$(generate_structured_review_json "$REVIEW_OUTPUT" '{}' "$PROJECT_DIR")
+    
+    # Add review_output_path to JSON
+    REVIEW_JSON=$(echo "$REVIEW_JSON" | jq --arg path "$REVIEW_OUTPUT" '. + {review_output_path: $path}')
+    
     echo "$REVIEW_JSON" > "$REVIEW_DIR/review_${review_num}.json"
 
     # Step 4: Check for critical fixes
-    local CRITICAL_COUNT=$(echo "$REVIEW_JSON" | jq '.critical_fixes | length')
-    local SCORE=$(echo "$REVIEW_JSON" | jq '.score')
+    local CRITICAL_COUNT=$(echo "$REVIEW_JSON" | jq -r '.critical_fixes | length // 999')
+    local SCORE=$(echo "$REVIEW_JSON" | jq -r '.score // 0')
 
     echo "   📊 Score: $SCORE/10"
     echo "   🔧 Critical fixes needed: $CRITICAL_COUNT"
@@ -214,6 +211,44 @@ run_code_review_cycle() {
     echo "   ✅ Fixes applied, re-reviewing..."
     echo ""
   done
+}
+
+################################################################################
+# detect_resume_state() - Find last completed iteration for resume
+################################################################################
+# Usage: detect_resume_state OUTPUT_DIR
+# Returns: JSON with last_iteration, run_dir, and handoff_file
+################################################################################
+detect_resume_state() {
+  local OUTPUT_DIR="$1"
+  
+  # Find the most recent run directory
+  local LATEST_RUN=$(ls -dt "$OUTPUT_DIR"/*-* 2>/dev/null | head -1)
+  
+  if [[ -z "$LATEST_RUN" || ! -d "$LATEST_RUN" ]]; then
+    echo '{"last_iteration": 0, "run_dir": "", "handoff_file": ""}'
+    return 0
+  fi
+  
+  # Find the highest iteration number
+  local MAX_ITER=0
+  for logfile in "$LATEST_RUN"/iteration_*.log; do
+    if [[ -f "$logfile" ]]; then
+      local iter_num=$(basename "$logfile" | sed 's/iteration_\([0-9]*\)\.log/\1/')
+      if [[ "$iter_num" =~ ^[0-9]+$ ]] && [[ "$iter_num" -gt "$MAX_ITER" ]]; then
+        MAX_ITER="$iter_num"
+      fi
+    fi
+  done
+  
+  # Look for handoff file in the parent directory (typical location)
+  local PARENT_DIR=$(dirname "$OUTPUT_DIR")
+  local HANDOFF_FILE=""
+  if [[ -f "$PARENT_DIR/HANDOFF.md" ]]; then
+    HANDOFF_FILE="$PARENT_DIR/HANDOFF.md"
+  fi
+  
+  echo "{\"last_iteration\": $MAX_ITER, \"run_dir\": \"$LATEST_RUN\", \"handoff_file\": \"$HANDOFF_FILE\"}"
 }
 
 # Run Claude agent in loop
@@ -276,8 +311,81 @@ run_claude_agent() {
 
   # Create output directory (base and per-run)
   mkdir -p "$OUTPUT_DIR"
-  local RUN_OUTPUT_DIR="$OUTPUT_DIR/$RUN_ID"
-  mkdir -p "$RUN_OUTPUT_DIR"
+  
+  # Check for resume mode
+  local START_ITERATION=1
+  local RESUME_MODE=false
+  local RESUME_CONTEXT=""
+  
+  if [[ "${RESUME_AGENT:-false}" == "true" ]]; then
+    echo "🔄 Resume mode enabled, checking for previous run..."
+    local RESUME_STATE=$(detect_resume_state "$OUTPUT_DIR")
+    local LAST_ITER=$(echo "$RESUME_STATE" | jq -r '.last_iteration')
+    local LAST_RUN_DIR=$(echo "$RESUME_STATE" | jq -r '.run_dir')
+    local LAST_HANDOFF=$(echo "$RESUME_STATE" | jq -r '.handoff_file')
+    
+    if [[ "$LAST_ITER" -gt 0 ]] && [[ -d "$LAST_RUN_DIR" ]]; then
+      RESUME_MODE=true
+      START_ITERATION=$((LAST_ITER + 1))
+      RUN_OUTPUT_DIR="$LAST_RUN_DIR"
+      
+      echo "   ✅ Found previous run: iteration $LAST_ITER"
+      echo "   📁 Resuming in: $RUN_OUTPUT_DIR"
+      echo "   🔢 Starting from iteration: $START_ITERATION"
+      
+      # Load last iteration output for context
+      local LAST_OUTPUT="$RUN_OUTPUT_DIR/iteration_${LAST_ITER}.log"
+      if [[ -f "$LAST_OUTPUT" ]]; then
+        RESUME_CONTEXT="
+## Resuming from Previous Session
+
+Last completed iteration: $LAST_ITER
+Previous output summary:
+\`\`\`
+$(tail -100 "$LAST_OUTPUT")
+\`\`\`
+"
+        echo "   📄 Loaded context from iteration $LAST_ITER"
+      fi
+      
+      # Override handoff file if found
+      if [[ -n "$LAST_HANDOFF" ]] && [[ -f "$LAST_HANDOFF" ]]; then
+        HANDOFF_FILE="$LAST_HANDOFF"
+        echo "   📋 Using existing handoff: $HANDOFF_FILE"
+      fi
+    else
+      echo "   ℹ️  No previous run found, starting fresh"
+      RESUME_MODE=false
+      START_ITERATION=1
+      RUN_OUTPUT_DIR="$OUTPUT_DIR/$RUN_ID"
+      mkdir -p "$RUN_OUTPUT_DIR"
+    fi
+  else
+    RUN_OUTPUT_DIR="$OUTPUT_DIR/$RUN_ID"
+    mkdir -p "$RUN_OUTPUT_DIR"
+  fi
+
+  # Initialize context files for this agent run
+  # Derive FEATURE_DIR from PROMPT_FILE or HANDOFF_FILE (both in .specs/{feature}/)
+  local FEATURE_DIR
+  if [[ "$PROMPT_FILE" == *.specs/* ]]; then
+    # Extract feature directory from prompt file path
+    FEATURE_DIR=$(dirname "$PROMPT_FILE")
+  elif [[ "$HANDOFF_FILE" == *.specs/* ]]; then
+    # Fallback to handoff file path
+    FEATURE_DIR=$(dirname "$HANDOFF_FILE")
+  else
+    # Fallback to project-wide context if not in .specs structure
+    FEATURE_DIR="$PROJECT_DIR"
+  fi
+
+  local CONTEXT_DIR="$FEATURE_DIR/context"
+  if ! ensure_context_files "$CONTEXT_DIR"; then
+    echo "❌ Error: Failed to initialize context files"
+    echo "   Context directory: $CONTEXT_DIR"
+    echo "   Please check directory permissions and try again"
+    return 1
+  fi
 
   echo "🤖 Starting Claude Autonomous Agent"
   echo "📝 Prompt: $PROMPT_FILE"
@@ -291,11 +399,28 @@ run_claude_agent() {
 
   speak "Starting agent with maximum $MAX_ITERATIONS iterations"
 
-  # Read initial prompt
+  # Read initial prompt and append context file requirements
+  local CONTEXT_INSTRUCTIONS='
+
+## Context File Requirements
+You MUST maintain the following context files in the `context/` directory:
+- `context/instructions.md` - Complete instructions for your current phase
+- `context/progress.md` - Progress tracking with measurable milestones
+- `context/findings.md` - Discoveries, insights, and thought processes
+- `context/achievements.md` - Recent achievements with validation proof
+
+Update these files after each significant action or discovery.
+'
   local CURRENT_PROMPT=$(cat "$PROMPT_FILE")
+  CURRENT_PROMPT="${CURRENT_PROMPT}${CONTEXT_INSTRUCTIONS}"
+  
+  # Add resume context if resuming
+  if [[ "$RESUME_MODE" == "true" ]] && [[ -n "$RESUME_CONTEXT" ]]; then
+    CURRENT_PROMPT="${CURRENT_PROMPT}${RESUME_CONTEXT}"
+  fi
 
   # Agent loop
-  for i in $(seq 1 $MAX_ITERATIONS); do
+  for i in $(seq $START_ITERATION $MAX_ITERATIONS); do
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "🔄 Iteration $i of $MAX_ITERATIONS"
     echo "⏰ $(date '+%Y-%m-%d %H:%M:%S')"
@@ -323,6 +448,28 @@ run_claude_agent() {
     echo "✅ Iteration $i complete"
     echo "📄 Saved: $OUTPUT_FILE"
     echo "📊 Output size: $(wc -c < "$OUTPUT_FILE") bytes"
+    echo ""
+
+    # Validate context files compliance
+    echo "🔍 Validating context files..."
+    if ! ensure_context_files "$CONTEXT_DIR"; then
+      echo "   ❌ Error: Failed to ensure context files exist"
+      echo "   Context directory: $CONTEXT_DIR"
+      echo "   Attempting recovery..."
+
+      # Attempt recovery by creating directory and retrying
+      if ! mkdir -p "$CONTEXT_DIR" || ! ensure_context_files "$CONTEXT_DIR"; then
+        echo "   ❌ Recovery failed - stopping agent"
+        return 1
+      fi
+      echo "   ✅ Recovery successful"
+    fi
+
+    if check_context_files_updated "$CONTEXT_DIR"; then
+      echo "   ✅ Context files updated"
+    else
+      echo "   ⚠️  Context files need attention"
+    fi
     echo ""
 
     # Generate and speak AI summary of iteration
@@ -410,6 +557,9 @@ run_claude_agent() {
   echo "📁 Run outputs: $RUN_OUTPUT_DIR"
   echo "   Total files: $(ls -1 "$RUN_OUTPUT_DIR" 2>/dev/null | wc -l)"
   echo ""
+  echo "📋 Context files:"
+  get_context_summary "$CONTEXT_DIR" | sed 's/^/   /'
+  echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   # Run code review cycle if enabled
@@ -453,6 +603,15 @@ Continue where previous agent left off:
 - Document all findings
 - Ask questions if uncertain
 - Keep changes minimal
+
+## Context File Requirements
+You MUST maintain the following context files in the \`context/\` directory:
+- \`context/instructions.md\` - Complete instructions for your current phase
+- \`context/progress.md\` - Progress tracking with measurable milestones
+- \`context/findings.md\` - Discoveries, insights, and thought processes
+- \`context/achievements.md\` - Recent achievements with validation proof
+
+Update these files after each significant action or discovery.
 
 Read handoff now and continue.
 EOF

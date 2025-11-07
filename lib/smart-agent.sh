@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source shared agent library
 source "$SCRIPT_DIR/agent-runner.sh"
@@ -105,37 +105,38 @@ Required JSON Structure:
 Return ONLY valid JSON, nothing else.
 EOF
 
-# Run Claude in JSON mode with the prompt file
+# Run analysis using AI SDK generateObject for guaranteed valid JSON
 cd "$PROJECT_DIR" || exit 1
 
-ANALYSIS_JSON=$(claude \
-  --print \
-  --output-format json \
-  --dangerously-skip-permissions \
-  "$(cat "$TEMP_ANALYSIS_PROMPT")
-
-# User's Prompt to Analyze
-$(cat "$TEMP_PROMPT")")
+# Use the robust extraction script instead of fragile CLI parsing
+ANALYSIS_JSON=$(bun "$SCRIPT_DIR/extract-analysis-json.ts" "$TEMP_PROMPT" 2>&1)
+EXTRACT_EXIT_CODE=$?
 
 # Cleanup temp files
 rm -rf "$TEMP_DIR"
 
-# Extract the actual result from CLI JSON wrapper
-CLAUDE_RESULT=$(echo "$ANALYSIS_JSON" | jq -r '.result')
-
-# Extract JSON from markdown code block (```json ... ```)
-ANALYSIS_JSON=$(echo "$CLAUDE_RESULT" | sed -n '/```json/,/```/p' | sed '1d;$d')
-
 # Validate JSON
-if ! echo "$ANALYSIS_JSON" | jq empty; then
-  echo "❌ Error: Extracted invalid JSON"
+if [[ $EXTRACT_EXIT_CODE -ne 0 ]] || ! echo "$ANALYSIS_JSON" | jq empty 2>/dev/null; then
+  echo "❌ Error: Failed to extract valid analysis JSON"
   echo ""
-  echo "Full extracted content:"
+  echo "Output from extraction:"
   echo "$ANALYSIS_JSON"
   echo ""
-  echo "Original Claude result:"
-  echo "$CLAUDE_RESULT"
-  exit 1
+  echo "Falling back to minimal configuration..."
+  
+  # Create minimal fallback configuration
+  ANALYSIS_JSON='{
+    "feature_name": "task",
+    "prompt_type": "General task",
+    "complexity": 5,
+    "max_iterations": 10,
+    "enable_code_review": true,
+    "max_reviews": 3,
+    "relevant_files": [],
+    "enhanced_prompt": "'"$(cat "$PROMPT_INPUT" | jq -Rs .)"'",
+    "initial_handoff": "# Agent Handoff\n\n## Session End\nStatus: starting\n\n## Task\nStarting new task",
+    "reasoning": "Using default settings due to analysis error"
+  }'
 fi
 
 # Extract configuration

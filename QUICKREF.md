@@ -187,7 +187,7 @@ run_claude_agent \
 run_claude "Your prompt" "output.log" "sonnet"
 
 # Generate structured output
-RESULT=$(generate_structured_output "output.log" '{"extra": "data"}')
+RESULT=$(generate_structured_review_json "output.log" '{"extra": "data"}' "$PROJECT_DIR")
 ```
 
 ## Documentation Map

@@ -156,6 +156,58 @@ $(echo "$ADDITIONAL_JSON" | jq -c 'with_entries(.value = "<your value>")')"
 }
 
 ################################################################################
+# generate_structured_review_json() - Generate structured review JSON
+################################################################################
+# Usage: generate_structured_review_json INPUT_FILE [ADDITIONAL_JSON] [PROJECT_DIR]
+#
+# Parameters:
+#   INPUT_FILE       - File containing review text to analyze
+#   ADDITIONAL_JSON  - Optional JSON string with additional keys to merge
+#   PROJECT_DIR      - Optional project directory (defaults to current dir)
+#
+# Output: Prints JSON to stdout with schema:
+# {
+#   "speech": "concise summary",
+#   "score": 8,
+#   "critical_fixes": ["fix1", "fix2"],
+#   "suggestions": ["suggestion1"],
+#   "summary": "2-3 sentence overview"
+# }
+#
+# Note: To change implementation (e.g., switch to Python), modify this function only
+################################################################################
+generate_structured_review_json() {
+  local INPUT_FILE="$1"
+  local ADDITIONAL_JSON="$2"
+  local PROJECT_DIR="$3"
+  
+  # Set defaults
+  [[ -z "$ADDITIONAL_JSON" ]] && ADDITIONAL_JSON="{}"
+  [[ -z "$PROJECT_DIR" ]] && PROJECT_DIR="."
+
+  # Current implementation: Bun script using AI SDK generateObject
+  # To switch to Python/other: replace this command with your implementation
+  local REVIEW_JSON
+  REVIEW_JSON=$(bun "$PROJECT_DIR/lib/extract-review-json.ts" "$INPUT_FILE" "$ADDITIONAL_JSON" 2>/dev/null)
+  
+  local exit_code=$?
+
+  # Validate JSON output
+  if [[ $exit_code -ne 0 ]] || ! echo "$REVIEW_JSON" | jq empty 2>/dev/null; then
+    echo "   ⚠️  Warning: Invalid JSON output, using defaults" >&2
+    REVIEW_JSON='{
+      "speech": "Review complete",
+      "score": 0,
+      "critical_fixes": [],
+      "suggestions": [],
+      "summary": "Error processing review"
+    }'
+  fi
+
+  echo "$REVIEW_JSON"
+}
+
+################################################################################
 # speak_from_json() - Extract speech field from JSON and speak it
 ################################################################################
 # Usage: speak_from_json JSON_STRING

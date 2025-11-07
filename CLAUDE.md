@@ -16,7 +16,7 @@ Three shell scripts work together:
 
 1. **claude-functions.sh** - Shared utilities
    - `run_claude()` - Execute Claude and save output
-   - `generate_structured_output()` - Extract JSON from Claude responses
+   - `generate_structured_review_json()` - Extract structured review data using AI SDK generateObject
    - Reusable across all agent operations
 
 2. **agent-runner.sh** - Core execution engine
@@ -231,7 +231,7 @@ bun run agent "Create test file with 'Hello World' in .ai-dr/test.txt"
 1. Source `lib/agent-runner.sh`
 2. Call `run_claude_agent()` with your config
 3. Create your own prompt/handoff generation
-4. Reuse `run_claude()` and `generate_structured_output()`
+4. Reuse `run_claude()` and `generate_structured_review_json()`
 
 ## Common Patterns
 
@@ -244,7 +244,7 @@ run_claude "$PROMPT_TEXT" "$OUTPUT_FILE" "sonnet"
 **Generating structured output:**
 ```bash
 # Extract JSON from Claude response
-RESULT_JSON=$(generate_structured_output "$OUTPUT_FILE" "$ADDITIONAL_JSON")
+RESULT_JSON=$(generate_structured_review_json "$OUTPUT_FILE" "$ADDITIONAL_JSON" "$PROJECT_DIR")
 ```
 
 **Working directory:**

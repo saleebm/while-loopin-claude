@@ -1,85 +1,68 @@
-# Multi-Phase Context Framework - Implementation
+# Multi-Phase Context Framework Implementation
 
-## Original User Prompt
+## Mission
+Implement a comprehensive context management framework that enforces agents to maintain context files tracking their work, and add a master agent system for coordinating multi-phase agent execution.
 
-Read `ORIGINAL-PROMPT.txt` for the exact user requirements.
+## Current State Analysis
+The codebase already includes:
+- `context-functions.sh` with full context file management utilities
+- Functions for creating, updating, and validating context files
+- Template structures for instructions, progress, findings, and achievements
+- Path sanitization and security measures
 
-## Your Mission
+## Implementation Tasks
 
-Implement a framework that enforces agents to maintain context files tracking their work, and adds a master agent system for coordinating multi-phase agent execution. Build this ON TOP of existing functionality without causing regressions.
+### Phase 1: Context File Integration (Already Partially Complete)
+- Context file functions already exist in `lib/context-functions.sh`
+- Need to integrate context file updates into the main agent loop in `agent-runner.sh`
+- Add instruction to agent prompts to use context files
+- Ensure context files are created/updated each iteration
 
-## Current Codebase Analysis
-
-You are working with:
-- `lib/agent-runner.sh` - Main agent loop (`run_claude_agent()`)
-- `lib/claude-functions.sh` - Core Claude execution utilities
-- `lib/smart-agent.sh` - AI orchestrator that analyzes prompts
-- `lib/handoff-functions.sh` - Handoff document management
-- `.specs/{feature-name}/` - Feature directory structure
-
-## Implementation Plan
-
-Follow the detailed plan in `PLAN.md`. Key phases:
-
-### Phase 1: Context File System
-- Add instruction to agent loop to create/update context files
-- Create context file template
-- Add helper functions for context management
-
-### Phase 2: Master Agent Framework  
-- Create master agent orchestrator
-- Create phase agent wrapper
+### Phase 2: Master Agent Framework
+- Create master agent orchestrator script
+- Implement phase detection and switching logic
 - Create planning agent interface
+- Add phase coordination utilities
 
 ### Phase 3: Integration
-- Integrate context files into existing loop
+- Integrate context updates into existing agent loop
 - Add master agent mode detection
-- Create feature directory pattern
+- Update feature directory patterns
+- Ensure backward compatibility
 
 ### Phase 4: Prompt Engineering
-- Update agent prompt templates
-- Create master/phase agent prompts
+- Update agent prompt templates to include context instructions
+- Create specialized prompts for master and phase agents
+- Add context awareness to existing prompts
 
 ## Critical Constraints
-
-1. **Preserve Everything**: All existing functionality must remain intact
-2. **Minimal Changes**: Only add code, don't modify core logic unnecessarily
-3. **First Principles**: Build on existing patterns (use `run_claude()`, `generate_structured_output()`)
-4. **Simplicity**: Avoid over-engineering
-5. **Composability**: Functions should be reusable
+1. **PRESERVE ALL EXISTING FUNCTIONALITY** - Zero regressions allowed
+2. **BUILD ON EXISTING PATTERNS** - Use existing functions like `run_claude()`, `ensure_context_files()`
+3. **MINIMAL MODIFICATIONS** - Only add code, don't change core logic unnecessarily
+4. **MAINTAIN SIMPLICITY** - Avoid over-engineering
+5. **ENSURE COMPOSABILITY** - Functions must be reusable
 
 ## Context File Requirements
-
-For each iteration, agents must maintain:
-- `context/instructions.md` - Complete instructions for current phase
-- `context/progress.md` - Progress tracking
-- `context/findings.md` - Discoveries and thoughts  
-- `context/achievements.md` - Recent achievements with validation proof
+- Location: `.specs/{feature-name}/context/`
+- Files: instructions.md, progress.md, findings.md, achievements.md
+- Must be updated every iteration
+- Must include validation proof in achievements
 
 ## Master Agent Requirements
+- Coordinate multi-phase execution
+- Operate alongside main agent
+- Control sub-agents based on planning output
+- Planning agent separate from main agent
 
-- Master agent coordinates multi-phase execution
-- Master agent operates alongside main agent
-- Master agent controls sub-agents based on planning agent output
-- Planning agent is separate from main agent
+## First Actions
+1. Verify existing context functions work correctly
+2. Add context file update instruction to agent loop
+3. Test with simple agent run
+4. Begin master agent framework design
 
-## Implementation Approach
-
-1. Start with Phase 1 (context files) - simplest addition
-2. Build Phase 2 (master agent) incrementally
-3. Integrate in Phase 3 carefully
-4. Enhance prompts in Phase 4
-
-## Success Criteria
-
-- ✅ Context files automatically created/updated
-- ✅ Master agent can coordinate phases
-- ✅ Zero regressions
-- ✅ Pattern reusable across `.specs/` directories
-- ✅ Minimal code changes
-
-## First Task
-
-Begin with Phase 1, Task 1.1: Add context file instruction to agent loop.
-
-Read `PLAN.md` for complete task breakdown, then implement incrementally, testing after each change.
+## Success Validation
+- Context files automatically created and populated
+- Agent loop continues to function normally
+- Master agent can coordinate phases
+- All existing tests pass
+- Pattern reusable across feature directories

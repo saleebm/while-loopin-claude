@@ -16,7 +16,7 @@ while-loopin-claude/
 │   │
 │   ├── claude-functions.sh    Reusable utilities (~200 lines)
 │   │   ├── run_claude()                - Execute Claude
-│   │   └── generate_structured_output() - Extract JSON
+│   │   └── generate_structured_review_json() - Extract structured review JSON
 │   │
 │   └── smart-agent.sh         AI orchestrator (235 lines)
 │       └── Analyzes prompts and determines all config
