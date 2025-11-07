@@ -4,14 +4,36 @@ Demonstrations of While Loopin' Claude usage patterns.
 
 ## Quick Reference
 
-| Example | Complexity | Code Review | Description |
-|---------|-----------|-------------|-------------|
-| [simple-task.md](./simple-task.md) | Low | No | Basic file creation task |
-| [bug-fix.md](./bug-fix.md) | Medium | Yes | Fix bug with quality checks |
+| Example | Type | Description |
+|---------|------|-------------|
+| [simple-task.md](./simple-task.md) | Prompt | Basic file creation task |
+| [bug-fix.md](./bug-fix.md) | Prompt | Fix bug with quality checks |
+| [color-art-app/](./color-art-app/) | Live App | 🚀 Visual app with live browser preview |
+| [test-interactive-prompts.sh](./test-interactive-prompts.sh) | Script | Test suite for interactive prompts |
+| [interactive-agent-config.sh](./interactive-agent-config.sh) | Script | Interactive configuration wizard |
 
 ## Running Examples
 
-Each example is a markdown file that serves as both documentation and a runnable prompt:
+### 🚀 Live Development Mode (RECOMMENDED!)
+
+**Maximum dopamine delivery!** Watch Claude build in real-time with live browser preview:
+
+```bash
+# Color art app with live preview
+bash examples/color-art-app/run-agent-live.sh
+```
+
+**What you get:**
+- 🌐 Auto-opens browser with your app
+- 📊 Real-time progress overlay showing Claude's work
+- 🔄 Instant auto-reload when files change
+- ✨ Beautiful animations and visual feedback
+
+See [color-art-app/LIVE-DEVELOPMENT.md](./color-art-app/LIVE-DEVELOPMENT.md) for full details!
+
+### Prompt Examples
+
+Each markdown file serves as both documentation and a runnable prompt:
 
 ```bash
 # Run directly
@@ -24,7 +46,30 @@ ENABLE_CODE_REVIEW=true bun run agent "$(cat examples/bug-fix.md)"
 MAX_ITERATIONS=20 ENABLE_SPEECH=true bun run agent "$(cat examples/simple-task.md)"
 ```
 
+### Interactive Prompt Examples
+
+Test and explore the interactive prompt system:
+
+```bash
+# Test all prompt types
+bash examples/test-interactive-prompts.sh
+
+# Test with speech enabled
+ENABLE_SPEECH=true bash examples/test-interactive-prompts.sh
+
+# Interactive configuration wizard
+bash examples/interactive-agent-config.sh
+```
+
 ## What Examples Demonstrate
+
+### color-art-app/
+- **Live browser preview** with auto-reload
+- **Real-time progress overlay** showing agent status
+- Visual feedback for maximum engagement
+- Auto-opening browser on agent start
+- WebSocket-based live updates
+- See [LIVE-DEVELOPMENT.md](./color-art-app/LIVE-DEVELOPMENT.md) for architecture details
 
 ### simple-task.md
 - Minimal agent setup
@@ -37,6 +82,20 @@ MAX_ITERATIONS=20 ENABLE_SPEECH=true bun run agent "$(cat examples/simple-task.m
 - Code review integration
 - Test creation
 - Quality validation
+
+### test-interactive-prompts.sh
+- All interactive prompt types (text, select, multiselect, confirm)
+- Alert sound integration
+- Speech output support
+- Input validation
+- Result display
+
+### interactive-agent-config.sh
+- Building configuration wizards
+- Chaining prompts logically
+- Conditional prompts
+- Converting selections to config
+- Final confirmation pattern
 
 ## Creating Your Own
 

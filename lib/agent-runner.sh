@@ -113,12 +113,6 @@ Respond with ONLY the sentence to speak, nothing else." || echo "Iteration $ITER
 
 # Code review helpers moved to lib/code-review.sh (sourced above)
 
-
-
-
-
-
-
 ################################################################################
 # Code Review Cycle Function
 ################################################################################

@@ -165,6 +165,52 @@ echo "💡 Reasoning:"
 echo "$REASONING" | sed 's/^/   /'
 echo ""
 
+# Interactive configuration (if not set via env vars)
+# Allow user to override AI suggestions
+if [[ "${INTERACTIVE_MODE:-true}" == "true" ]]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "⚙️  Configuration"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # Confirm or adjust max iterations
+  if prompt_user confirm "Use AI-suggested max iterations ($MAX_ITERATIONS)?" "y"; then
+    echo "   ✅ Using $MAX_ITERATIONS iterations"
+  else
+    MAX_ITERATIONS=$(prompt_user text "Enter max iterations:" "$MAX_ITERATIONS")
+    echo "   ✅ Set to $MAX_ITERATIONS iterations"
+  fi
+
+  # Confirm or adjust code review
+  if prompt_user confirm "Enable code review? (AI suggested: $ENABLE_CODE_REVIEW)" "$ENABLE_CODE_REVIEW"; then
+    ENABLE_CODE_REVIEW=true
+    echo "   ✅ Code review enabled"
+
+    # Optionally adjust max reviews
+    if prompt_user confirm "Use AI-suggested max reviews ($MAX_REVIEWS)?" "y"; then
+      echo "   ✅ Using $MAX_REVIEWS reviews"
+    else
+      MAX_REVIEWS=$(prompt_user text "Enter max reviews:" "$MAX_REVIEWS")
+      echo "   ✅ Set to $MAX_REVIEWS reviews"
+    fi
+  else
+    ENABLE_CODE_REVIEW=false
+    echo "   ⏭️  Code review disabled"
+  fi
+
+  # Enable speech option
+  if [[ "${ENABLE_SPEECH:-false}" != "true" ]]; then
+    if prompt_user confirm "Enable speech summaries?" "n"; then
+      ENABLE_SPEECH=true
+      export ENABLE_SPEECH
+      echo "   ✅ Speech enabled"
+    else
+      echo "   ⏭️  Speech disabled"
+    fi
+  fi
+
+  echo ""
+fi
+
 # Create feature directory structure
 FEATURE_DIR="$PROJECT_DIR/.specs/$FEATURE_NAME"
 OUTPUT_DIR="$PROJECT_DIR/.ai-dr/agent-runs/$FEATURE_NAME"

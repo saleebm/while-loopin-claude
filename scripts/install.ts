@@ -24,9 +24,9 @@ function parseArgs(): Args {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--target' && i + 1 < argv.length) {
-      target = argv[++i];
+      target = argv[++i]!; // Safe: we checked i + 1 < argv.length
     } else if (a === '--shared-path' && i + 1 < argv.length) {
-      sharedPath = argv[++i];
+      sharedPath = argv[++i]!; // Safe: we checked i + 1 < argv.length
     }
   }
   if (!target) {

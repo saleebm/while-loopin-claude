@@ -141,6 +141,52 @@ ENABLE_SPEECH=true bun run agent "prompt"
 
 Uses Claude Haiku to generate concise progress updates.
 
+## Interactive Prompts
+
+Interactive prompt system for user input during agent startup. All functions support:
+- Alert sound (plays on prompt)
+- Speech output (if ENABLE_SPEECH=true)
+- Composable, modular design
+
+**Available prompt types:**
+
+```bash
+# Text input with optional default
+NAME=$(prompt_user text "Enter name:" "default-name")
+
+# Single select menu (returns 1-based index)
+CHOICE=$(prompt_user select "Choose option:" "opt1" "opt2" "opt3")
+
+# Multi-select menu (returns space-separated indices)
+CHOICES=$(prompt_user multiselect "Select features:" "feat1" "feat2" "feat3")
+
+# Yes/no confirmation (returns 0 for yes, 1 for no)
+if prompt_user confirm "Continue?" "y"; then
+  echo "Confirmed"
+fi
+```
+
+**Interactive mode in smart-agent:**
+
+By default, smart-agent.sh prompts for configuration. Disable with:
+```bash
+INTERACTIVE_MODE=false bash lib/smart-agent.sh "prompt"
+```
+
+**Direct function usage:**
+
+```bash
+# Source the functions
+source lib/claude-functions.sh
+
+# Use individual prompt functions
+prompt_select "Choose model:" "sonnet" "opus" "haiku"
+prompt_confirm "Enable review?" "n"
+prompt_text "Project name:" "my-project"
+```
+
+See `examples/test-interactive-prompts.sh` for complete test suite.
+
 ## Testing and Validation
 
 **Before committing changes:**
