@@ -2,25 +2,47 @@
 
 AI-orchestrated autonomous agent system for Claude CLI. Lets Claude run in a loop until tasks complete.
 
+## 📚 Documentation
+
+| Document | Purpose |
+|----------|---------|
+| **[QUICK-START.md](QUICK-START.md)** | Get running in 5 minutes |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System design, diagrams, and components |
+| **[API-SPEC.md](API-SPEC.md)** | Language-agnostic interface specifications |
+| **[CLAUDE.md](CLAUDE.md)** | Development guide and best practices |
+
 ## What It Does
 
-- Runs Claude autonomously with iterative handoffs
-- AI analyzes your prompt and determines optimal configuration
-- Auto-creates feature directories with specs, handoffs, outputs
-- Optional code review cycles with automatic fix application
-- Rate limiting and speech feedback support
+- 🤖 **Autonomous Execution** - Claude runs in iterative loops until task completion
+- 🧠 **AI Configuration** - Analyzes prompts to determine optimal settings
+- 📁 **Smart Organization** - Auto-creates feature directories with specs
+- ✅ **Quality Assurance** - Optional code review with automatic fixes
+- 🌐 **Live Preview** - Real-time browser updates with WebSocket
+- 🔊 **Feedback Options** - Rate limiting, speech output, progress tracking
 
 ## Quick Start
 
-```bash
-# Install into a project (shared libs + template)
-node scripts/install.ts --target /path/to/your-project
+> 📖 **See [QUICK-START.md](QUICK-START.md) for detailed setup and common use cases**
 
+### Fastest Demo (30 seconds)
+```bash
+# Clone and run interactive demo
+git clone https://github.com/yourusername/while-loopin-claude.git
+cd while-loopin-claude
+npm install
+bash examples/quick-test.sh
+```
+
+### Basic Usage
+```bash
 # Run agent with inline prompt
 bun run agent "Fix the authentication bug in user login"
 
 # Run agent with prompt file
 bun run agent path/to/plan.txt
+
+# Run with live preview
+bash examples/color-art-app/run-agent-live.sh
 ```
 
 ## How It Works
@@ -200,26 +222,38 @@ See `examples/` directory for:
 
 ## Architecture
 
-Three core components:
+> 📖 **See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed system design, diagrams, and component specifications**
 
-1. **smart-agent.sh** - AI orchestrator
-   - Analyzes prompts
-   - Generates configuration
-   - Sets up feature directories
+### Core Components
 
-2. **agent-runner.sh** - Execution engine
-   - Runs Claude in loop
-   - Manages handoffs
-   - Coordinates code review
+1. **smart-agent.sh** - AI orchestrator that analyzes prompts and determines configuration
+2. **agent-runner.sh** - Execution engine that runs Claude in iterative loops
+3. **claude-functions.sh** - Reusable utilities for Claude execution and JSON parsing
 
-3. **claude-functions.sh** - Utilities
-   - Reusable Claude execution
-   - JSON generation with Haiku
-   - Structured output helpers
+### New Components (Context Framework)
+4. **context-functions.sh** - Persistent context tracking across iterations
+5. **master-agent.sh** - Multi-phase task orchestration
+6. **phase-agent.sh** - Individual phase execution wrapper
+7. **live-server.js** - WebSocket server for real-time browser updates
+
+## Building Your Own Implementation
+
+> 📖 **See [API-SPEC.md](API-SPEC.md) for language-agnostic interface specifications**
+
+The patterns demonstrated here can be implemented in any language:
+
+- **Python**: Use the Anthropic SDK
+- **TypeScript/JavaScript**: Node.js implementation
+- **Go**: HTTP client with structured types
+- **Ruby/Java/C#**: Follow the interface contracts
+
+All core interfaces, schemas, and contracts are documented in [API-SPEC.md](API-SPEC.md).
 
 ## Best Practices
 
-See `CLAUDE.md` for:
+> 📖 **See [CLAUDE.md](CLAUDE.md) for comprehensive development guide**
+
+Key topics covered:
 - How to write effective prompts
 - Feature spec organization
 - Handoff document format
