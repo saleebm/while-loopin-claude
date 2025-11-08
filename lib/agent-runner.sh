@@ -241,11 +241,17 @@ detect_resume_state() {
     fi
   done
   
-  # Look for handoff file in the parent directory (typical location)
-  local PARENT_DIR=$(dirname "$OUTPUT_DIR")
+  # Look for handoff file in the .specs/{feature} directory
+  # Extract feature name from OUTPUT_DIR (e.g., .ai-dr/agent-runs/feature-name -> feature-name)
+  local FEATURE_NAME=$(basename "$OUTPUT_DIR")
   local HANDOFF_FILE=""
-  if [[ -f "$PARENT_DIR/HANDOFF.md" ]]; then
-    HANDOFF_FILE="$PARENT_DIR/HANDOFF.md"
+
+  # Check in .specs/{feature-name}/ first (standard location)
+  if [[ -f ".specs/${FEATURE_NAME}/HANDOFF.md" ]]; then
+    HANDOFF_FILE=".specs/${FEATURE_NAME}/HANDOFF.md"
+  # Fallback to parent directory (legacy location)
+  elif [[ -f "$(dirname "$OUTPUT_DIR")/HANDOFF.md" ]]; then
+    HANDOFF_FILE="$(dirname "$OUTPUT_DIR")/HANDOFF.md"
   fi
   
   echo "{\"last_iteration\": $MAX_ITER, \"run_dir\": \"$LATEST_RUN\", \"handoff_file\": \"$HANDOFF_FILE\"}"

@@ -22,23 +22,20 @@
 The agent only ran 1 iteration but has resume capability. Run this command:
 
 ```bash
-cd .specs/multi-phase-context-framework
 RESUME_AGENT=true ENABLE_CODE_REVIEW=true MAX_ITERATIONS=10 \
-  bun run agent "Continue implementing the multi-phase context framework.
-
-  IMPORTANT CONTEXT:
-  - Phase 1 (context files) is DONE
-  - The context directory bug has been FIXED - context now goes to FEATURE_DIR/context
-  - You need to implement Phase 2: Master Agent Framework
-
-  Phase 2 Tasks:
-  1. Create lib/master-agent.sh for multi-phase orchestration
-  2. Create lib/phase-agent.sh for individual phase execution
-  3. Create lib/planning-agent.sh for phase planning from prompts
-  4. Add multi-phase detection to lib/smart-agent.sh
-
-  The goal is to enable complex tasks to be split into phases with separate agents."
+  bun run agent ".specs/multi-phase-context-framework/AGENT-PROMPT.md"
 ```
+
+The agent will automatically:
+- Resume from where it left off (iteration 2)
+- Load the previous context and handoff
+- Continue implementing Phase 2: Master Agent Framework
+
+**Phase 2 Tasks it needs to complete:**
+1. Create lib/master-agent.sh for multi-phase orchestration
+2. Create lib/phase-agent.sh for individual phase execution
+3. Create lib/planning-agent.sh for phase planning from prompts
+4. Add multi-phase detection to lib/smart-agent.sh
 
 ### Step 2: Verify Context Files Work
 
