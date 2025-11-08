@@ -77,10 +77,6 @@ bash examples/color-art-app/run-agent-live.sh
 ```
 your-project/
 ├── .specs/
-│   ├── _shared/          # Agent system (copy lib/ here)
-│   │   ├── agent-runner.sh
-│   │   ├── claude-functions.sh
-│   │   └── smart-agent.sh
 │   └── {feature-name}/   # Auto-generated per task
 │       ├── AGENT-PROMPT.md
 │       ├── HANDOFF.md
@@ -120,7 +116,7 @@ RATE_LIMIT_SECONDS=30 bun run agent "your prompt"
 
 ```bash
 # Run agent with specific config
-bash .specs/_shared/agent-runner.sh \
+bash lib/agent-runner.sh \
   .specs/my-feature/AGENT-PROMPT.md \
   .specs/my-feature/HANDOFF.md \
   .ai-dr/agent-runs/my-feature \
@@ -136,7 +132,7 @@ bash .specs/_shared/agent-runner.sh \
 See `lib/agent-runner.sh` for the core `run_claude_agent()` function:
 
 ```bash
-source .specs/_shared/agent-runner.sh
+source lib/agent-runner.sh
 
 run_claude_agent \
   "$PROMPT_FILE" \

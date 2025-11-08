@@ -14,9 +14,11 @@ const analysisSchema = z.object({
   feature_name: z.string().describe("Kebab-case feature directory name"),
   prompt_type: z.string().describe("Specific description of the task type"),
   complexity: z.number().min(1).max(10).describe("Task complexity from 1-10"),
+  estimated_complexity: z.enum(["low", "medium", "high", "very-high"]).describe("Complexity category"),
   max_iterations: z.number().min(1).max(50).describe("Recommended max iterations"),
   enable_code_review: z.boolean().describe("Whether code review should be enabled"),
   max_reviews: z.number().min(1).max(10).describe("Maximum number of code review cycles"),
+  use_master_agent: z.boolean().describe("Whether to use multi-phase master agent"),
   relevant_files: z.array(z.string()).describe("List of files likely relevant to this task"),
   enhanced_prompt: z.string().describe("Enhanced version of the prompt with full context"),
   initial_handoff: z.string().describe("Initial handoff document content"),
@@ -44,9 +46,19 @@ Your Task:
 2. What should the feature folder be named? (kebab-case slug)
 3. What files are likely relevant to this task?
 4. How complex is this task? (estimate iterations needed, 1-50)
-5. Should this include code review?
-6. Create an enhanced version of the prompt with full context
-7. Write an initial handoff document
+5. What is the complexity category? (low/medium/high/very-high)
+6. Should this include code review?
+7. Should this use the master agent for multi-phase orchestration? (true for very complex, multi-part tasks)
+8. Create an enhanced version of the prompt with full context
+9. Write an initial handoff document
+
+For use_master_agent, return true if:
+- Task requires multiple distinct phases (e.g., "build complete auth system")
+- Has complex dependencies between components
+- Needs coordinated work across different subsystems
+- Has estimated_complexity of "very-high"
+
+Return false for simple, single-focused tasks.
 
 Return structured data matching the schema.`,
   });
@@ -75,9 +87,11 @@ if (import.meta.main) {
       feature_name: "task",
       prompt_type: "General task",
       complexity: 5,
+      estimated_complexity: "medium",
       max_iterations: 10,
       enable_code_review: true,
       max_reviews: 3,
+      use_master_agent: false,
       relevant_files: [],
       enhanced_prompt: readFileSync(promptFile, "utf-8"),
       initial_handoff: "# Agent Handoff\n\n## Session End\nStatus: starting\n\n## Task\nStarting new task",

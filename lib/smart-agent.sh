@@ -122,9 +122,9 @@ EOF
 # Run analysis using Claude CLI which handles auth properly
 cd "$PROJECT_DIR" || exit 1
 
-# Use run_claude_json function that works with Claude CLI
+# Use AI SDK generateObject for guaranteed structured JSON
 ANALYSIS_OUTPUT=$(mktemp)
-if run_claude_json "$(<"$TEMP_ANALYSIS_PROMPT")" "haiku" > "$ANALYSIS_OUTPUT" 2>&1; then
+if bun run "$SCRIPT_DIR/extract-analysis-json.ts" "$TEMP_ANALYSIS_PROMPT" > "$ANALYSIS_OUTPUT" 2>&1; then
   ANALYSIS_JSON=$(cat "$ANALYSIS_OUTPUT")
   EXTRACT_EXIT_CODE=0
 else
