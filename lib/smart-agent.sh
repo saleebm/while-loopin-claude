@@ -12,6 +12,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source shared agent library
 source "$SCRIPT_DIR/agent-runner.sh"
+source "$SCRIPT_DIR/master-agent.sh"
 
 # Help message
 show_help() {
@@ -93,6 +94,8 @@ Required JSON Structure:
   "max_iterations": 10,
   "enable_code_review": true,
   "max_reviews": 5,
+  "use_master_agent": false,
+  "estimated_complexity": "low|medium|high|very-high",
   "relevant_files": [
     "src/components/MilkdownEditor.tsx",
     "src/core/mdx-parser.ts"
@@ -102,15 +105,33 @@ Required JSON Structure:
   "reasoning": "Why I chose these settings..."
 }
 
+Use "use_master_agent": true for tasks that:
+- Require multiple distinct phases (e.g., "build complete auth system")
+- Have complex dependencies between components
+- Need coordinated work across different subsystems
+- Have estimated_complexity of "very-high"
+
+Use "use_master_agent": false for tasks that:
+- Are single-focused (e.g., "fix this bug", "add this feature")
+- Can be completed in a linear fashion
+- Have low to high complexity but not very-high
+
 Return ONLY valid JSON, nothing else.
 EOF
 
-# Run analysis using AI SDK generateObject for guaranteed valid JSON
+# Run analysis using Claude CLI which handles auth properly
 cd "$PROJECT_DIR" || exit 1
 
-# Use the robust extraction script instead of fragile CLI parsing
-ANALYSIS_JSON=$(bun "$SCRIPT_DIR/extract-analysis-json.ts" "$TEMP_PROMPT" 2>&1)
-EXTRACT_EXIT_CODE=$?
+# Use run_claude_json function that works with Claude CLI
+ANALYSIS_OUTPUT=$(mktemp)
+if run_claude_json "$(<"$TEMP_ANALYSIS_PROMPT")" "haiku" > "$ANALYSIS_OUTPUT" 2>&1; then
+  ANALYSIS_JSON=$(cat "$ANALYSIS_OUTPUT")
+  EXTRACT_EXIT_CODE=0
+else
+  EXTRACT_EXIT_CODE=1
+  ANALYSIS_JSON=""
+fi
+rm -f "$ANALYSIS_OUTPUT"
 
 # Cleanup temp files
 rm -rf "$TEMP_DIR"
@@ -145,9 +166,16 @@ PROMPT_TYPE=$(echo "$ANALYSIS_JSON" | jq -r '.prompt_type')
 MAX_ITERATIONS=$(echo "$ANALYSIS_JSON" | jq -r '.max_iterations')
 ENABLE_CODE_REVIEW=$(echo "$ANALYSIS_JSON" | jq -r '.enable_code_review')
 MAX_REVIEWS=$(echo "$ANALYSIS_JSON" | jq -r '.max_reviews')
+USE_MASTER_AGENT=$(echo "$ANALYSIS_JSON" | jq -r '.use_master_agent // "false"')
+ESTIMATED_COMPLEXITY=$(echo "$ANALYSIS_JSON" | jq -r '.estimated_complexity // "medium"')
 ENHANCED_PROMPT=$(echo "$ANALYSIS_JSON" | jq -r '.enhanced_prompt')
 INITIAL_HANDOFF=$(echo "$ANALYSIS_JSON" | jq -r '.initial_handoff')
 REASONING=$(echo "$ANALYSIS_JSON" | jq -r '.reasoning')
+
+# Allow override via environment variable
+if [[ "${MASTER_AGENT:-}" == "true" ]]; then
+  USE_MASTER_AGENT=true
+fi
 
 # Display analysis
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -156,11 +184,13 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "📋 Task Type: $PROMPT_TYPE"
 echo "📁 Feature Name: $FEATURE_NAME"
+echo "📊 Complexity: $ESTIMATED_COMPLEXITY"
 echo "🔄 Max Iterations: $MAX_ITERATIONS"
 echo "🔍 Code Review: $ENABLE_CODE_REVIEW"
 if [[ "$ENABLE_CODE_REVIEW" == "true" ]]; then
   echo "📊 Max Reviews: $MAX_REVIEWS"
 fi
+echo "🎯 Master Agent: $USE_MASTER_AGENT"
 echo ""
 echo "💡 Reasoning:"
 echo "$REASONING" | sed 's/^/   /'
@@ -206,6 +236,17 @@ if [[ "${INTERACTIVE_MODE:-true}" == "true" ]]; then
       echo "   ✅ Speech enabled"
     else
       echo "   ⏭️  Speech disabled"
+    fi
+  fi
+
+  # Master agent option (only show if AI suggested it or complexity is very-high)
+  if [[ "$USE_MASTER_AGENT" == "true" ]] || [[ "$ESTIMATED_COMPLEXITY" == "very-high" ]]; then
+    if prompt_user confirm "Use master agent for multi-phase execution? (AI suggested: $USE_MASTER_AGENT)" "$USE_MASTER_AGENT"; then
+      USE_MASTER_AGENT=true
+      echo "   ✅ Master agent enabled"
+    else
+      USE_MASTER_AGENT=false
+      echo "   ⏭️  Using standard agent"
     fi
   fi
 
@@ -255,27 +296,46 @@ EOF
 echo "💾 Created README: $FEATURE_DIR/README.md"
 echo ""
 
-# Build agent arguments
-AGENT_ARGS=(
-  "$FEATURE_DIR/AGENT-PROMPT.md"
-  "$FEATURE_DIR/HANDOFF.md"
-  "$OUTPUT_DIR"
-  "$MAX_ITERATIONS"
-)
+# Choose execution mode based on USE_MASTER_AGENT flag
+if [[ "$USE_MASTER_AGENT" == "true" ]]; then
+  # Master Agent Mode - Multi-Phase Execution
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "🎯 Starting Master Agent (Multi-Phase Mode)"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
 
-if [[ "$ENABLE_CODE_REVIEW" == "true" ]]; then
-  AGENT_ARGS+=(--enable-code-review --max-reviews "$MAX_REVIEWS")
+  # Master agent takes the original user goal and feature directory
+  # It will handle planning, phase breakdown, and execution
+  run_master_agent "$PROMPT_TEXT" "$FEATURE_DIR" "$MAX_ITERATIONS"
+
+  echo ""
+  echo "✅ Master agent complete"
+  echo "📁 Feature dir: $FEATURE_DIR"
+  echo "📁 Phase outputs: $FEATURE_DIR/phase-*/"
+else
+  # Standard Agent Mode - Single Phase Execution
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "🚀 Starting Standard Agent (Single-Phase Mode)"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # Build agent arguments
+  AGENT_ARGS=(
+    "$FEATURE_DIR/AGENT-PROMPT.md"
+    "$FEATURE_DIR/HANDOFF.md"
+    "$OUTPUT_DIR"
+    "$MAX_ITERATIONS"
+  )
+
+  if [[ "$ENABLE_CODE_REVIEW" == "true" ]]; then
+    AGENT_ARGS+=(--enable-code-review --max-reviews "$MAX_REVIEWS")
+  fi
+
+  # Run the standard agent
+  run_claude_agent "${AGENT_ARGS[@]}"
+
+  echo ""
+  echo "✅ Smart agent complete"
+  echo "📁 Feature dir: $FEATURE_DIR"
+  echo "📁 Outputs: $OUTPUT_DIR"
 fi
-
-# Run the agent
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 Starting Agent"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-run_claude_agent "${AGENT_ARGS[@]}"
-
-echo ""
-echo "✅ Smart agent complete"
-echo "📁 Feature dir: $FEATURE_DIR"
-echo "📁 Outputs: $OUTPUT_DIR"

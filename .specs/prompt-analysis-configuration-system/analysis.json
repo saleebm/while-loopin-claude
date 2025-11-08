@@ -1,0 +1,20 @@
+{
+  "feature_name": "prompt-analysis-configuration-system",
+  "prompt_type": "Meta-system analysis: Generating structured JSON configuration schema for autonomous agent orchestration",
+  "complexity": 3,
+  "max_iterations": 2,
+  "enable_code_review": false,
+  "max_reviews": 0,
+  "use_master_agent": false,
+  "estimated_complexity": "low",
+  "relevant_files": [
+    "lib/smart-agent.sh",
+    "lib/agent-runner.sh",
+    "lib/claude-functions.sh",
+    ".specs/multi-phase-context-framework/MASTER-AGENT-DESIGN.md",
+    "package.json"
+  ],
+  "enhanced_prompt": "# Prompt Analysis Configuration System\n\n## Task\nImplement or validate a JSON configuration generator that analyzes user prompts and returns structured configurations for autonomous agent execution.\n\n## System Context\nThis is part of the 'While Loopin' Claude' project - a shell script orchestration system for AI-driven development tasks. The system uses:\n- `claude-functions.sh`: Shared utilities for running Claude and generating structured output\n- `agent-runner.sh`: Core execution engine managing agent loops and code review cycles\n- `smart-agent.sh`: AI orchestrator that analyzes prompts and determines configuration dynamically\n\n## Analysis Requirements\n1. **Task Type**: Identify the specific nature of the work (not generic categories)\n2. **Feature Naming**: Generate descriptive kebab-case folder names for organization\n3. **File Discovery**: Identify relevant codebase files based on task context\n4. **Complexity Estimation**: Determine iteration count and overall difficulty (low|medium|high|very-high)\n5. **Code Review Decision**: Determine if review cycle should be enabled\n6. **Prompt Enhancement**: Expand user prompt with full contextual information\n7. **Initial Handoff**: Create starting handoff document with status tracking\n\n## Configuration Output\nReturn valid JSON with all required fields, following the specified structure. Reasoning should explain each configuration choice based on task analysis.\n\n## Master Agent Trigger\nUse master agent (true) only for multi-phase, multi-subsystem work with very-high complexity. Use standard agent (false) for single-focused, linear tasks.",
+  "initial_handoff": "# Agent Handoff\n\n## Session End\nStatus: starting\n\n## Current State\nSystem is ready to analyze user prompts and generate autonomous agent configurations. The configuration generator validates:\n- Task type specificity\n- Feature naming conventions\n- Relevant file identification\n- Complexity estimation\n- Code review requirements\n- Prompt enhancement with context\n- Handoff document generation\n\n## Next Steps\n1. Accept user prompt for analysis\n2. Examine project structure and recent changes\n3. Identify relevant files and task scope\n4. Generate structured JSON configuration\n5. Return configuration to user for agent execution\n\n## Findings\nThe system is designed to make decisions dynamically rather than hard-code logic. Configuration should adapt to specific task characteristics, not generic categories.\n\n## Investigation Notes\n- Project uses shell script orchestration with Claude integration\n- Three primary scripts work together: functions, runner, and orchestrator\n- Master agent mode is reserved for very-high complexity, multi-phase work\n- Configuration impacts iteration count, review cycles, and execution strategy",
+  "reasoning": "This is a meta-analysis of the system itself rather than a specific user feature request. Marked as low complexity (3 iterations) since it's primarily about configuration generation logic. No code review needed as this is architectural/system analysis. Standard agent sufficient since the work is linear and focused on one configuration generator component. Relevant files are the core agent infrastructure and existing multi-phase framework documentation. The enhanced prompt contextualizes how this fits into the broader While Loopin' Claude system."
+}

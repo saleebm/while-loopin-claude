@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "agent": "bash lib/smart-agent.sh",
+    "resume": "bash lib/resume-agent.sh",
     "demo": "bash demo-generative-art.sh",
     "live": "node lib/live-server.js",
     "art:live": "WATCH_DIR=examples/color-art-app node lib/live-server.js",

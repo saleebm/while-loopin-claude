@@ -12,39 +12,93 @@
 
 ## Architecture
 
-Three shell scripts work together:
+Four shell scripts work together:
 
 1. **claude-functions.sh** - Shared utilities
    - `run_claude()` - Execute Claude and save output
    - `generate_structured_review_json()` - Extract structured review data using AI SDK generateObject
    - Reusable across all agent operations
 
-2. **agent-runner.sh** - Core execution engine
+2. **context-functions.sh** - Context file management
+   - `ensure_context_files()` - Create/validate context files
+   - `check_context_files_updated()` - Verify agent updates
+   - Automatic context tracking for all agents
+
+3. **agent-runner.sh** - Core execution engine
    - `run_claude_agent()` - Main agent loop
    - `run_code_review_cycle()` - Optional review process
    - `process_critical_fixes()` - Apply fixes from reviews
    - `run_lint_and_typecheck()` - Validate code quality
+   - Integrates context file management automatically
 
-3. **smart-agent.sh** - AI orchestrator
+4. **master-agent.sh** - Multi-phase orchestrator
+   - `run_master_agent()` - Coordinate phase execution
+   - `run_claude_planning()` - Break tasks into phases
+   - `aggregate_phase_context()` - Cross-phase context
+   - For complex, multi-phase tasks
+
+5. **smart-agent.sh** - AI orchestrator
    - Analyzes prompts with Claude
    - Determines all configuration dynamically
+   - Chooses standard vs master agent mode
    - Creates feature directories
-   - Invokes agent-runner.sh with config
+   - Invokes appropriate agent with config
+
+## Multi-Phase Context Framework
+
+The system supports two execution modes, automatically selected based on task complexity:
+
+### Standard Mode (Single-Phase)
+Used for most tasks - focused work with single agent. **Automatically includes:**
+- Context files tracking agent's work (`context/instructions.md`, `progress.md`, `findings.md`, `achievements.md`)
+- Agent receives context requirements in every prompt
+- System validates context files are updated after each iteration
+- Final summary includes context file overview
+
+### Master Agent Mode (Multi-Phase)
+Used for complex tasks requiring coordinated phases. **Process:**
+
+1. **Planning Phase**: AI breaks task into 2-5 logical phases with dependencies
+2. **Phase Execution**: Each phase runs as standard agent with own context
+3. **Context Aggregation**: Results flow between phases via master context
+4. **Completion**: All phase results aggregated to feature root
+
+**When to use Master Agent:**
+- AI automatically suggests for "very-high" complexity tasks
+- Force with `MASTER_AGENT=true` environment variable
+- Good for: "Build complete X system", "Implement full Y with Z"
+- Not needed for: "Fix bug", "Add single feature", "Refactor X"
+
+**See comprehensive usage guide:** `.specs/multi-phase-context-framework/USAGE.md`
 
 ## Feature Spec Organization
 
 All feature work MUST use `.specs/{feature-name}/` structure:
 
+### Standard Mode Structure
 **Required files:**
 - `AGENT-PROMPT.md` - Enhanced prompt with full context
 - `HANDOFF.md` - Session status and handoff (NOT in repo root)
 - `analysis.json` - AI-determined configuration
 - `README.md` - Navigation to all spec docs
+- `context/` - Four context files (auto-created)
+  - `instructions.md` - Current phase instructions
+  - `progress.md` - Milestone tracking
+  - `findings.md` - Discoveries and insights
+  - `achievements.md` - Completed work with validation
 
 **Optional files:**
 - `PLAN.md` - Detailed implementation plan
-- `FINDINGS.md` - Research and discoveries
-- `PROGRESS.md` - Implementation tracking
+- `FINDINGS.md` - Research and discoveries (legacy, prefer context/findings.md)
+- `PROGRESS.md` - Implementation tracking (legacy, prefer context/progress.md)
+
+### Master Agent Mode Structure
+**Additional files for multi-phase:**
+- `phases.json` - AI-generated phase breakdown
+- `planning.log` - Planning agent output
+- `master-context.md` - Aggregated cross-phase results
+- `phase-1/`, `phase-2/`, etc. - Per-phase directories
+  - Each phase has own `AGENT-PROMPT.md`, `HANDOFF.md`, `context/`
 
 ## Handoff Document Format
 
@@ -247,6 +301,33 @@ run_claude "$PROMPT_TEXT" "$OUTPUT_FILE" "sonnet"
 RESULT_JSON=$(generate_structured_review_json "$OUTPUT_FILE" "$ADDITIONAL_JSON" "$PROJECT_DIR")
 ```
 
+**Working with context files:**
+```bash
+# Context files are automatic in agent-runner.sh, but you can use directly:
+source lib/context-functions.sh
+
+# Initialize context files for a feature
+ensure_context_files "$CONTEXT_DIR"
+
+# Check if agent updated context files
+if check_context_files_updated "$CONTEXT_DIR"; then
+  echo "✅ Context files updated"
+fi
+```
+
+**Using master agent:**
+```bash
+# Let AI decide (recommended)
+bash lib/smart-agent.sh "your complex task"
+
+# Force master agent mode
+MASTER_AGENT=true bash lib/smart-agent.sh "your task"
+
+# Direct API call
+source lib/master-agent.sh
+run_master_agent "goal" ".specs/feature-name" 10
+```
+
 **Working directory:**
 ```bash
 # Always cd to project root before Claude commands
@@ -266,13 +347,22 @@ fi
 ## File Locations
 
 **In user's project:**
-- `.specs/_shared/` - Agent system scripts
+- `.specs/_shared/` - Agent system scripts (if needed)
 - `.specs/{feature-name}/` - Feature-specific files
+  - `context/` - Four context files (auto-created)
+  - `phase-N/` - Phase directories (master agent mode)
 - `.ai-dr/agent-runs/` - Agent outputs
 - `.ai-dr/prompts/` - Saved prompts
 
 **In this repo:**
 - `lib/` - Reusable shell scripts
+  - `claude-functions.sh` - Core Claude utilities
+  - `context-functions.sh` - Context file management
+  - `agent-runner.sh` - Standard agent engine
+  - `master-agent.sh` - Multi-phase orchestrator
+  - `smart-agent.sh` - AI-powered orchestrator
+- `templates/` - Agent prompt templates
+  - `planning-agent-prompt.md` - Master agent planning
 - `examples/` - Usage demonstrations
 - `.ai-dr/` - Output directory structure
 
@@ -292,7 +382,15 @@ DON'T forget to update documentation
 
 ## Resources
 
-- See `README.md` for usage examples
-- See `examples/` for integration patterns
-- See script comments for detailed requirements
-- Check `lib/agent-runner.sh` requirements header (lines 9-66)
+**Documentation:**
+- `README.md` - Main usage guide and quick start
+- `.specs/multi-phase-context-framework/USAGE.md` - Comprehensive multi-phase guide
+- `.specs/multi-phase-context-framework/MASTER-AGENT-DESIGN.md` - Architecture details
+- `examples/` - Integration patterns and demos
+- Script comments - Detailed inline requirements
+
+**Key Implementation Files:**
+- `lib/agent-runner.sh` requirements header (lines 9-66)
+- `lib/master-agent.sh` full implementation (426 lines)
+- `lib/context-functions.sh` context management (500+ lines)
+- `templates/planning-agent-prompt.md` - Planning template

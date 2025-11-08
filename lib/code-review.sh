@@ -19,14 +19,20 @@ generate_review_prompt() {
   local LATEST_OUTPUT=$(ls -t "$OUTPUT_DIR"/iteration_*.log 2>/dev/null | head -1)
 
   # Load code quality reviewer template
-  local TEMPLATE_PATH="$PROJECT_DIR/.claude/agents/code-quality-reviewer.md"
-  local TEMPLATE_CONTENT=""
+  # Prefer repo-level template, allow user override
+  local TEMPLATE_PATH=""
+  if [[ -f "$PROJECT_DIR/templates/code-quality-reviewer.md" ]]; then
+    TEMPLATE_PATH="$PROJECT_DIR/templates/code-quality-reviewer.md"
+  elif [[ -f "$PROJECT_DIR/.claude/agents/code-quality-reviewer.md" ]]; then
+    TEMPLATE_PATH="$PROJECT_DIR/.claude/agents/code-quality-reviewer.md"
+  fi
 
-  if [[ -f "$TEMPLATE_PATH" ]]; then
-    # Extract content after the frontmatter (after the second ---)
-    TEMPLATE_CONTENT=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$TEMPLATE_PATH" | tail -n +2)
+  local TEMPLATE_CONTENT=""
+  if [[ -n "$TEMPLATE_PATH" ]]; then
+    # Extract content after the frontmatter (skip lines until after the second ---)
+    TEMPLATE_CONTENT=$(awk '/^---$/{if(++count==2){next}}count==2' "$TEMPLATE_PATH")
   else
-    echo "⚠️  Warning: Template not found at $TEMPLATE_PATH, using inline template" >&2
+    echo "⚠️  Warning: No template found, using inline template" >&2
     TEMPLATE_CONTENT="Review the code for quality, maintainability, and best practices."
   fi
 
