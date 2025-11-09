@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "type": "http"
+    },
+    "sequential-thinking": {
+      "command": "/Users/minasaleeb/.bun/bin/bunx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "type": "stdio"
+    },
+    "mcp-sequentialthinking-tools": {
+      "command": "/Users/minasaleeb/.bun/bin/bunx",
+      "args": [
+        "-y",
+        "mcp-sequentialthinking-tools"
+      ],
+      "env": {
+        "MAX_HISTORY_SIZE": "1000"
+      }
+    },
+    "brave-search": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "BRAVE_API_KEY",
+        "docker.io/mcp/brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
+    }
+  }
+}
